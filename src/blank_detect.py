@@ -6,7 +6,8 @@ import numpy as np
 def is_blank(
         image: np.ndarray, 
         gray_threshold_value: float = 127,
-        output_threshold_value: float = 0.5
+        upper_threshold: float = 0.95,
+        lower_threshold: float = 0.5
     ) -> bool:
     
     '''
@@ -32,7 +33,7 @@ def is_blank(
 
     # Binary threshold
     _, binary_image = cv2.threshold(
-        image, 
+        gray_image, 
         gray_threshold_value, 
         255, 
         cv2.THRESH_BINARY
@@ -41,6 +42,6 @@ def is_blank(
     total_black = np.sum(binary_image == 0)
     total_pixel = binary_image.size
 
-    black_ratio = (total_black / total_pixel) * 100
+    black_ratio = (total_black / total_pixel)
 
-    return black_ratio < output_threshold_value
+    return black_ratio < lower_threshold or black_ratio > upper_threshold
