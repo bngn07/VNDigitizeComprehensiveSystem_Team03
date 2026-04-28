@@ -7,7 +7,7 @@ def is_blank(
         image: np.ndarray, 
         gray_threshold_value: float = 127,
         upper_threshold: float = 0.95,
-        lower_threshold: float = 0.5
+        lower_threshold: float = 0.01
     ) -> bool:
     
     '''
