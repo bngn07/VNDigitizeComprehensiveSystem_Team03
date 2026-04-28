@@ -7,10 +7,10 @@ import csv
 
 os.makedirs("output/dataset/images", exist_ok=True)
 IMG_W, IMG_H = 500,500
-NUM_SAMPLES = 500
+NUM_SAMPLES = 5000
 
-random.seed(42)
-np.random.seed(42)
+random.seed(79)
+np.random.seed(69)
 
 # --- Load text from file ---
 TEXT_FILE_PATH = "data/input/text/lorem.txt"
