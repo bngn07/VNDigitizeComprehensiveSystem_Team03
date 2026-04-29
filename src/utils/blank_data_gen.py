@@ -9,8 +9,8 @@ os.makedirs("output/dataset/images", exist_ok=True)
 IMG_W, IMG_H = 500,500
 NUM_SAMPLES = 5000
 
-random.seed(79)
-np.random.seed(69)
+random.seed(54)
+np.random.seed(25)
 
 # --- Load text from file ---
 TEXT_FILE_PATH = "data/input/text/lorem.txt"
@@ -65,38 +65,36 @@ def add_text(draw, canvas_w, canvas_h, n_lines):
         draw.text((x, y), text, fill=gray_val, font=font)
 
 def generate_sample(idx):
-    # Decide content type
     content_type = random.choice(["blank", "noise_only", "dots_only", "text_only", "mixed"])
     bg_val = random.randint(240, 255)
     img_array = np.full((IMG_H, IMG_W), bg_val, dtype=np.uint8)
-    
-    # Decide if blank
-    if content_type == "blank":
-        # Possibly add very faint gaussian noise (imperceptible)
-        noise_intensity = random.choice([0, 0, 0, 1.5])
-        img_array = add_gaussian_noise(img_array, noise_intensity)
-        label = 1  # is_blank
+    if content_type in ["blank", "noise_only", "dots_only"]:
+        label = 1  
+        
+        if content_type == "blank":
+            noise_intensity = random.choice([0, 0, 0, 1.5])
+            img_array = add_gaussian_noise(img_array, noise_intensity)
+            
+        elif content_type == "noise_only":
+            img_array = add_gaussian_noise(img_array, random.uniform(15, 40))
+            
+        elif content_type == "dots_only":
+            img = Image.fromarray(img_array, mode="L")
+            draw = ImageDraw.Draw(img)
+            add_salt_pepper_dots(draw, random.randint(20, 200), IMG_W, IMG_H)
+            img_array = np.array(img)
+            
     else:
-        label = 0  # not_blank
+        label = 0  
         img = Image.fromarray(img_array, mode="L")
         draw = ImageDraw.Draw(img)
         
-        if content_type == "noise_only":
-            img_array = add_gaussian_noise(img_array, random.uniform(15, 40))
-            img = Image.fromarray(img_array, mode="L")
-            
-        elif content_type == "dots_only":
-            n_dots = random.randint(20, 200)
-            add_salt_pepper_dots(draw, n_dots, IMG_W, IMG_H)
-            img_array = np.array(img)
-            
-        elif content_type == "text_only":
+        if content_type == "text_only":
             n_lines = random.randint(3, 15)
             add_text(draw, IMG_W, IMG_H, n_lines)
             img_array = np.array(img)
             
         elif content_type == "mixed":
-            # Any combo of text, dots, noise
             has_text = random.random() > 0.3
             has_dots = random.random() > 0.3
             has_noise = random.random() > 0.3
@@ -114,12 +112,11 @@ def generate_sample(idx):
                 
             img_array = np.array(img)
             
-        img = Image.fromarray(img_array, mode="L")
-        
-    # Final image save
+    # Lưu ảnh
     filename = f"img_{idx:04d}.png"
     path = f"output/dataset/images/{filename}"
     Image.fromarray(img_array, mode="L").save(path)
+    
     return filename, label, content_type
 
 # Generate dataset

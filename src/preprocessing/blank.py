@@ -1,5 +1,5 @@
 # ====================================================================
-#       preprocessor.py
+#       blank.py
 # ====================================================================
 # IMPORTS
 # --------------------------------------------------------------------
@@ -8,9 +8,7 @@ import numpy as np
 import joblib
 import cv2
 
-from strategies.base import IBlankDetector
 # ====================================================================
-
 # BLANK PAGE DETECTOR
 # --------------------------------------------------------------------
 #   - Detech when a page is blank or not.
@@ -25,7 +23,7 @@ from strategies.base import IBlankDetector
 #       + threshold: lowest score to be considered blank
 #       + lower: lower black ratio threshold
 #       + upper: upper black ratio threshold
-class BlankDetector(IBlankDetector):
+class BlankDetector():
     def __init__(
         self,
         model_path: str,
@@ -66,7 +64,7 @@ class BlankDetector(IBlankDetector):
         hist = hist[hist > 0]
         entropy_val = float(-np.sum(hist * np.log2(hist)))
 
-        return np.array([[black_ratio, std_val, entropy_val]])
+        return np.array([black_ratio, std_val, entropy_val])
 
     def is_blank(self, image: np.ndarray) -> Tuple[bool, float, str]:
         '''
@@ -85,10 +83,10 @@ class BlankDetector(IBlankDetector):
         features = self.extract_blank_features(image)
         black_ratio = float(features[0])
 
-        if black_ratio < self.lower:
-            return True, 1.0, f"density_too_white (ratio={black_ratio:.4f})"
-        if black_ratio > self.upper:
-            return True, 1.0, f"density_too_black (ratio={black_ratio:.4f})"
+        # if black_ratio < self.lower:
+        #     return True, 1.0, f"density_too_white (ratio={black_ratio:.4f})"
+        # if black_ratio > self.upper:
+        #     return True, 1.0, f"density_too_black (ratio={black_ratio:.4f})"
 
         probs = self.model.predict_proba(features.reshape(1, -1))[0]
         blank_score = float(probs[1])
