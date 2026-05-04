@@ -7,5 +7,26 @@
   },
   "code_detector": {
     "types": ["QRCODE", "CODE128"]
+  },
+  "image_preprocessor": {
+    "enable_deskew": true,
+    "enable_autocrop": true,
+    "gaussian_blur": {
+      "kernel_size": [5, 5],
+      "sigma_x": 0
+    },
+    "adaptive_threshold": {
+      "max_value": 255,
+      "block_size": 11,
+      "c": 2
+    },
+    "sharpening": {
+      "enable": true,
+      "kernel": [
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0]
+      ]
+    }
   }
 }
