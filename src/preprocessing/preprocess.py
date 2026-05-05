@@ -170,7 +170,6 @@ class Preprocessing:
             x, y, w, h = cv2.boundingRect(coords)
             cropped = image[y:y + h, x:x + w]
 
-        # Safety: ensure single-channel output
         if len(cropped.shape) == 3:
             cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
         return cropped

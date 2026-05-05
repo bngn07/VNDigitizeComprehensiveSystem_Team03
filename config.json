@@ -6,7 +6,7 @@
     "upper": 0.98
   },
   "code_detector": {
-    "types": ["QRCODE", "CODE128"]
+    "types": []
   },
   "image_preprocessor": {
     "enable_deskew": true,
@@ -27,6 +27,10 @@
         [-1, 5, -1],
         [0, -1, 0]
       ]
+    },
+    "tesseract": {
+        "cmd_path": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+        "config": "--psm 0"
     }
   }
 }
