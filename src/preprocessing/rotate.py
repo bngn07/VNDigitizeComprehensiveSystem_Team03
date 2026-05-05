@@ -27,7 +27,8 @@ class RotationDetector:
         script = str(osd_data.get('script', 'Unknown'))
         
         return RotationResult(
-            angle=angle, 
-            confidence=confidence, 
-            script=script
+            angle = angle, 
+            confidence = confidence / 100.0, 
+            # convert to real percentage, not value in [0,100] (%) 
+            script = script
         )
