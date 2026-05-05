@@ -10,11 +10,8 @@ vn-digitize/
 │   ├── preprocessing/
 │   │   ├── __init__.py
 │   │   ├── blank.py
-│   │   ├── orientation.py
-│   │   ├── barcode.py
-│   │   ├── deskew.py
-│   │   ├── denoise.py
-│   │   └── crop.py
+│   │   ├── code.py
+│   │   └── preprocess.py
 │   │
 │   ├── ocr/
 │   │   ├── __init__.py
