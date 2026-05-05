@@ -5,7 +5,7 @@ import numpy as np
 from pyzbar.pyzbar import decode, ZBarSymbol
 
 @dataclass
-class CodeDataObject:
+class CodeResult:
     type: str
     content: str
     bbox: tuple[int, int, int, int]
@@ -23,7 +23,7 @@ class CodeDetector:
                 )
         self._types = types
 
-    def detect(self, image: np.ndarray) -> list[CodeDataObject]: # can be more than one code in a page
+    def detect(self, image: np.ndarray) -> list[CodeResult]: # can be more than one code in a page
         if image is None or image.size == 0:
             return []
 
@@ -36,7 +36,7 @@ class CodeDetector:
         return [self._parse(r) for r in results]
     
     # r: Any because in the source code of pyzbar, the return type of decode is not well defined. IIt can return weird objects that are not documented according to the author of the lib himself.
-    def _parse(self, r: Any) -> CodeDataObject:
+    def _parse(self, r: Any) -> CodeResult:
         # return {
         #     "type": r.type,
         #     "content": r.data.decode("utf-8", errors="replace"),
@@ -45,7 +45,7 @@ class CodeDetector:
         #     "quality": r.quality,
         # }
 
-        return CodeDataObject(
+        return CodeResult(
             type=r.type, 
             content=r.data.decode("utf-8", errors="replace"),
             bbox=(r.rect.left, r.rect.top, r.rect.width, r.rect.height),

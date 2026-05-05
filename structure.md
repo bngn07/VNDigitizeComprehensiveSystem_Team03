@@ -66,7 +66,7 @@ vn-digitize/
 │   ├── 01_explore_ocr_libs.ipynb
 │   ├── 02_train_blank_classifier.ipynb
 │   └── 03_benchmark_accuracy.ipynb
-│
+│   
 ├── scripts/
 │   ├── benchmark.py
 │   └── eval_accuracy.py
