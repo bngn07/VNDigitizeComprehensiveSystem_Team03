@@ -235,40 +235,38 @@ class Preprocessing:
         # 1. Grayscale
         gray = self._to_grayscale(image)
 
-        # 2. Blank check (early exit)
+        # 2. Blank check
         blank_result = self.blank_detector.is_blank(gray)
         if blank_result.is_blank:
-            # return image, self._build_metadata(True, blank_result.confidence, blank_result.comment, [])
-
             return PreprocessResult(
-                image = image, 
-                metadata = self._build_metadata(True, blank_result.confidence, blank_result.comment, [])
+                image=image,
+                metadata=self._build_metadata(
+                    True, blank_result.confidence, blank_result.comment, []
+                ),
             )
 
-        # 3. Denoise
-        blurred = self._denoise(gray)
+        # 3. Orientation correction
+        oriented = self._orientation(gray)
 
-        # 4. Orientation correction
-        oriented = self._orientation(blurred)
+        # 4. Light denoise
+        blurred = self._denoise(oriented)
 
-        # 5. Deskew (operates on denoised grayscale)
-        deskewed = self._deskew(oriented)
+        # 5. Deskew
+        deskewed = self._deskew(blurred)
 
         # 6. Autocrop
         cropped = self._autocrop(deskewed)
 
-        # 7. QR / Barcode detection on the cleanest grayscale version
+        # 7. QR / Barcode detection
         qr_results = self.code_preprocessor.detect(cropped)
 
-        # 8. Adaptive threshold (background normalization)
+        # 8. Adaptive threshold
         normalized = self._adaptive_threshold(cropped)
 
         # 9. Sharpening
         sharpened = self._sharpen(normalized)
 
-        metadata = self._build_metadata(False, blank_result.confidence, blank_result.comment, qr_results)
-
-        return PreprocessResult(
-            image = sharpened, 
-            metadata = metadata
+        metadata = self._build_metadata(
+            False, blank_result.confidence, blank_result.comment, qr_results
         )
+        return PreprocessResult(image=sharpened, metadata=metadata)
