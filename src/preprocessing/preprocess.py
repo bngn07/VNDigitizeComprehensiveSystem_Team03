@@ -205,9 +205,7 @@ class Preprocessing:
         doc_cnt = doc_cnt.reshape(4, 2) * ratio
         warped = four_point_transform(image, doc_cnt)
 
-        scanned = self._adaptive_threshold(warped)
-
-        return scanned
+        return warped
 
     # def _transparent_to_white(self, image: np.ndarray) -> np.ndarray:
     #     if image.ndim != 3 or image.shape[2] != 4:
