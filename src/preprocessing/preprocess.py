@@ -189,26 +189,6 @@ class Preprocessing:
         kernel = np.array(kernel_val)
         return cv2.filter2D(image, -1, kernel)
 
-    def _orientation(self, image: np.ndarray) -> np.ndarray:
-        """Detect and correct orientation using Tesseract's OSD."""
-        result = self.rotation_detector.detect(image)
-
-        if result.confidence < 0.1 or result.angle == 0:
-            print(f"Low confidence ({result.confidence:.2f}) in orientation detection, skipping rotation.")
-            return image
-        if result.angle == 90:
-            print("Rotating 90 degrees clockwise")
-            return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-        elif result.angle == 180:
-            print("Rotating 180 degrees")
-            return cv2.rotate(image, cv2.ROTATE_180)
-        elif result.angle == 270:
-            print("Rotating 270 degrees clockwise")
-            return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            
-        return image
-
-
     # def _transparent_to_white(self, image: np.ndarray) -> np.ndarray:
     #     if image.ndim != 3 or image.shape[2] != 4:
     #         return image
@@ -250,7 +230,7 @@ class Preprocessing:
             )
 
         # 3. Orientation correction
-        oriented = self._orientation(gray)
+        oriented = self.rotation_detector._orient(gray)
 
         # 4. Light denoise
         blurred = self._denoise(oriented)

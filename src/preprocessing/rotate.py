@@ -1,5 +1,6 @@
 import cv2
 import pytesseract
+import numpy as np
 from pytesseract import Output
 from dataclasses import dataclass
 
@@ -32,3 +33,17 @@ class RotationDetector:
             # convert to real percentage, not value in [0,100] (%) 
             script = script
         )
+    
+    def _orient(self, image: np.ndarray) -> np.ndarray:
+        result = self.detect(image)
+
+        if result.confidence < 0.1 or result.angle == 0:
+            return image
+        if result.angle == 90:
+            return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+        elif result.angle == 180:
+            return cv2.rotate(image, cv2.ROTATE_180)
+        elif result.angle == 270:
+            return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            
+        return image
