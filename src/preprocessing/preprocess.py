@@ -6,6 +6,7 @@ import cv2
 from .blank import BlankDetector
 from .code import CodeDetector
 from .rotate import RotationDetector
+from .geometry import *
 
 '''
 # pipeline_config = {
@@ -189,6 +190,25 @@ class Preprocessing:
         kernel = np.array(kernel_val)
         return cv2.filter2D(image, -1, kernel)
     
+    def _perspective_correct(self, image: np.ndarray) -> np.ndarray:
+        """Detect document edges and apply perspective correction."""
+
+        ratio = image.shape[0] / 500.0
+        image_resized = cv2.resize(image, (int(image.shape[1] / ratio), 500))
+        
+        doc_cnt = detect_document(image_resized)
+
+        if doc_cnt is None:
+            print("Không detect được document → fallback crop")
+            return image
+        
+        doc_cnt = doc_cnt.reshape(4, 2) * ratio
+        warped = four_point_transform(image, doc_cnt)
+
+        scanned = self._adaptive_threshold(warped)
+
+        return scanned
+
     # def _transparent_to_white(self, image: np.ndarray) -> np.ndarray:
     #     if image.ndim != 3 or image.shape[2] != 4:
     #         return image
@@ -202,7 +222,7 @@ class Preprocessing:
     #     composited = bgr * alpha + white * (1.0 - alpha)
     #     return np.clip(composited, 0, 255).astype(np.uint8)
 
-    
+
 
     @staticmethod
     def _build_metadata(is_blank: bool, confidence, comment, qr_list) -> dict:
