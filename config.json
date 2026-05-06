@@ -6,10 +6,7 @@
     "upper": 0.98
   },
   "code_preprocessor": {
-    "types": [
-      "QRCODE",
-      "CODE128"
-    ]
+    "types": []
   },
   "image_preprocessor": {
     "enable_deskew": true,

@@ -15,15 +15,21 @@ class RotationDetector:
         self.config = config
 
     def detect(self, image) -> RotationResult:
-        osd_data = pytesseract.image_to_osd(
-            image, 
-            output_type=Output.DICT, 
-            config=self.config
-        )
-        
-        angle = float(osd_data.get('rotate', 0.0))
-        confidence = float(osd_data.get('orientation_conf', 0.0))
-        script = str(osd_data.get('script', 'Unknown'))
+        try:
+            osd_data = pytesseract.image_to_osd(
+                image, 
+                output_type=Output.DICT, 
+                config=self.config
+            )
+            
+            angle = float(osd_data.get('rotate', 0.0))
+            confidence = float(osd_data.get('orientation_conf', 0.0))
+            script = str(osd_data.get('script', 'Unknown'))
+        except Exception as e:
+            print(f"Error during rotation detection: {e}, no rotation was done.")
+            angle = 0.0
+            confidence = 0.0
+            script = "Unknown"
         
         return RotationResult(
             angle = angle, 

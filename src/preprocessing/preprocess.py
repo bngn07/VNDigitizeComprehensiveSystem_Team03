@@ -226,10 +226,10 @@ class Preprocessing:
         oriented = self.rotation_detector._orient(gray)
 
         # 4. Perspective
-        corrected = self._perspective_correct(oriented)
+        # corrected = self._perspective_correct(oriented)
 
         # 5. Denoise
-        blurred = self._denoise(corrected)
+        blurred = self._denoise(oriented)
 
         # 6. Deskew
         deskewed = self._deskew(blurred)
