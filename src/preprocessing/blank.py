@@ -4,6 +4,7 @@
 # IMPORTS
 # --------------------------------------------------------------------
 from typing import Tuple
+from dataclasses import dataclass
 import numpy as np
 import joblib
 import cv2
@@ -23,6 +24,12 @@ import cv2
 #       + threshold: lowest score to be considered blank
 #       + lower: lower black ratio threshold
 #       + upper: upper black ratio threshold
+@dataclass
+class BlankResult:
+    is_blank: bool
+    confidence: float
+    comment: str
+
 class BlankDetector():
     def __init__(
         self,
@@ -68,7 +75,7 @@ class BlankDetector():
 
         return np.array([black_ratio, std_val, entropy_val])
 
-    def is_blank(self, image: np.ndarray) -> Tuple[bool, float, str]:
+    def is_blank(self, image: np.ndarray) -> BlankResult:
         '''
             Decide if the image is actually blank.
             
@@ -80,7 +87,7 @@ class BlankDetector():
                 - An image in np.ndarray (by cv2.imread)
             Return:
                 - A list containing its feature, 
-                    featuring is_blank, blank_score and detailed comment.
+                    featuring is_blank, confidence and detailed comment.
         '''
         features = self.extract_blank_features(image)
         
@@ -93,7 +100,13 @@ class BlankDetector():
         #     return True, 1.0, f"density_too_black (ratio={black_ratio:.4f})"
 
         probs = self.model.predict_proba(features.reshape(1, -1))[0]
-        blank_score = float(probs[1])
-        is_blank = blank_score >= self.threshold
+        confidence = float(probs[1])
+        is_blank = confidence >= self.threshold
 
-        return is_blank, blank_score, f"rf_model (score={blank_score:.4f})"
+        return BlankResult(
+            is_blank = is_blank, 
+            # its 1 - confidence because the model predicts the probability of being blank, but confidence should be higher when it's more likely to be blank.
+            # so 90% confidence is 90% sure about not being blank.
+            confidence = 1 - confidence, 
+            comment = f"rf_model (score={confidence:.4f})"
+        )

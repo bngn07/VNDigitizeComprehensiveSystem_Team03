@@ -1,15 +1,18 @@
 {
   "blank_detector": {
-    "model_path": "models\\rf_blank_detector.joblib",
+    "model_path": "models/rf_blank_detector.joblib",
     "threshold": 0.65,
     "lower": 0.01,
     "upper": 0.98
   },
-  "code_detector": {
-    "types": ["QRCODE", "CODE128"]
+  "code_preprocessor": {
+    "types": []
   },
   "image_preprocessor": {
     "enable_deskew": true,
+    "deskew": {
+      "max_angle": 45
+    },
     "enable_autocrop": true,
     "gaussian_blur": {
       "kernel_size": [5, 5],
@@ -28,5 +31,8 @@
         [0, -1, 0]
       ]
     }
+  },
+  "tesseract": {
+    "config": "--psm 0"
   }
 }
