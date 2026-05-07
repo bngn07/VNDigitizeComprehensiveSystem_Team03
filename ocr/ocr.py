@@ -1,24 +1,24 @@
 import numpy as np
 from dataclasses import dataclass
-
 from abc import ABC, abstractmethod
-from typing import List, Union, overload
+from typing import overload
 
-@dataclass
+@dataclass(frozen=True)
 class OCRResult:
     text: str
     confidence: float
+
+class BaseOCR(ABC):
     
-class OCRModel(ABC):
     @overload
     def recognize(self, image: np.ndarray) -> OCRResult: ...
 
     @overload
-    def recognize(self, image: List[np.ndarray]) -> List[OCRResult]: ...
+    def recognize(self, image: list[np.ndarray]) -> list[OCRResult]: ...
 
     @abstractmethod
     def recognize(
             self, 
-            image: Union[np.ndarray, List[np.ndarray]]
-        ) -> Union[OCRResult, List[OCRResult]]:
+            image: np.ndarray | list[np.ndarray]
+        ) -> OCRResult | list[OCRResult]:
         pass
