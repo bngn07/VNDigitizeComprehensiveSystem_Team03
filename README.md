@@ -1,6 +1,6 @@
 # VN-Digitize-Comprehensive-System-_-Team-03
 <<<<<<< HEAD
-link đến dataset: https://drive.google.com/drive/folders/1sXXs4bnBljA0i95X0opNlANrDwo6HfJp?usp=drive_link
+link đến dataset: [https://drive.google.com/drive/folders/1sXXs4bnBljA0i95X0opNlANrDwo6HfJp?usp=drive_link](https://drive.google.com/drive/folders/1ineDU5p1QoUdfVlugh5Ot-FIAySs1co1?usp=sharing)
 
 =======
 
