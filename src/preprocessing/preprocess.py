@@ -223,13 +223,13 @@ class Preprocessing:
             )
         
         # 3. Orientation
-        oriented = self.rotation_detector._orient(gray)
+        #oriented = self.rotation_detector._orient(gray)
 
         # 4. Perspective
         # corrected = self._perspective_correct(oriented)
 
         # 5. Denoise
-        blurred = self._denoise(oriented)
+        blurred = self._denoise(gray)
 
         # 6. Deskew
         deskewed = self._deskew(blurred)
@@ -246,7 +246,9 @@ class Preprocessing:
         # 9. Sharpen grayscale
         sharpened = self._sharpen(normalized)
 
+        result = sharpened
+
         metadata = self._build_metadata(
             False, blank_result.confidence, blank_result.comment, qr_results
         )
-        return PreprocessResult(image=sharpened, metadata=metadata)
+        return PreprocessResult(image = result, metadata=metadata)
