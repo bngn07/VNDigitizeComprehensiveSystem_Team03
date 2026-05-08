@@ -1,5 +1,5 @@
 # -- built in
-from dataclasses import dataclass
+from dataclasses import (dataclass, asdict)
 
 # -- 3rd party
 import numpy as np
@@ -7,16 +7,19 @@ import cv2
 from paddleocr import PaddleOCR
 
 # -- own
-from .ocr import BaseOCR, OCRResult
+from .ocr import BaseOCR, OCRResult, TextBlock
 
 
 @dataclass
 class PaddleParams:
     lang: str = 'en'
     device: str = 'cpu'
+    ocr_version: str = 'PP-OCRv5'
+
     use_textline_orientation: bool = False
     use_doc_orientation_classify: bool = False
     use_doc_unwarping: bool = False
+
     det_model_dir: str | None = None
     rec_model_dir: str | None = None
 
@@ -24,22 +27,9 @@ class PaddleModel:
     def __init__(self, params: PaddleParams | None = None):
         self.params = params or PaddleParams()
 
-        kwargs = dict(
-            lang=self.params.lang,
-            device=self.params.device,
-            use_textline_orientation=self.params.use_textline_orientation,
-            use_doc_orientation_classify=self.params.use_doc_orientation_classify,
-            use_doc_unwarping=self.params.use_doc_unwarping,
-        )
-
-        # Only pass model dirs when explicitly provided
-        if self.params.det_model_dir:
-            kwargs['text_detection_model_dir'] = self.params.det_model_dir
-        if self.params.rec_model_dir:
-            kwargs['text_recognition_model_dir'] = self.params.rec_model_dir
+        kwargs = {k: v for k, v in asdict(self.params).items() if v is not None}
 
         self._engine = PaddleOCR(**kwargs)
-
 
 class Paddle(BaseOCR):
     def __init__(self, model: PaddleModel | None = None):
@@ -47,7 +37,6 @@ class Paddle(BaseOCR):
         self.model = model or PaddleModel()
 
     def _to_rgb(self, image: np.ndarray) -> np.ndarray:
-        """PaddleOCR expects RGB; cv2 loads BGR."""
         if image.ndim == 2:
             return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         if image.shape[2] == 3:
@@ -57,42 +46,37 @@ class Paddle(BaseOCR):
         return image
 
     def _parse_result(self, raw) -> OCRResult:
-        """
-        PaddleOCR v3 structure:
-        res.json['res']['rec_texts']  → list of strings
-        res.json['res']['rec_scores'] → list of floats
-        """
         if not raw:
-            return OCRResult(text='', confidence=0.0)
+            return OCRResult(texts=[])
 
-        lines, confidences = [], []
+        blocks = []
 
         for res in raw:
             data = res.json.get('res', {})
             rec_texts  = data.get('rec_texts', [])
             rec_scores = data.get('rec_scores', [])
+            
+            dt_polys = data.get('dt_polys', [])
 
-            for text, conf in zip(rec_texts, rec_scores):
+            if not dt_polys and rec_texts:
+                dt_polys = [[] for _ in rec_texts]
+
+            for text, conf, poly in zip(rec_texts, rec_scores, dt_polys):
                 if text and text.strip():
-                    lines.append(text.strip())
-                    confidences.append(float(conf))
+                    polygon = [(int(p[0]), int(p[1])) for p in poly] if poly else []
+                    
+                    block = TextBlock(
+                        text=text.strip(),
+                        bounding_polygon=polygon,
+                        confidence=float(conf)
+                    )
+                    blocks.append(block)
 
-        if not lines:
-            return OCRResult(text='', confidence=0.0)
-
-        return OCRResult(
-            text='\n'.join(lines),
-            confidence=round(float(np.mean(confidences)), 4),
-        )
+        return OCRResult(texts=blocks)
 
     def _recognize_single(self, image: np.ndarray) -> OCRResult:
         rgb = self._to_rgb(image)
-        raw = self.model._engine.predict(rgb)   # was: .ocr(rgb, cls=...)
-
-        for res in raw:
-            print("=== type:", type(res))
-            print("=== dir:", [x for x in dir(res) if not x.startswith('__')])
-            print("=== json:", res.json)
+        raw = self.model._engine.predict(rgb)
 
         return self._parse_result(raw)
 
