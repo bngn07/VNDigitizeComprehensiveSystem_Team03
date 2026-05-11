@@ -601,17 +601,37 @@ class Preprocessing:
         """
         gray = self._to_grayscale(image)
 
+<<<<<<< HEAD
         quality = self._assess_quality(gray)
 
         blank_result       = self.blank_detector.is_blank(gray)
         orientation_result = self.rotation_detector.detect(gray)
 
         oriented = self.rotation_detector._orient(gray)
+=======
+        # 2. Blank check
+        blank_result = self.blank_detector.is_blank(gray)
+        if blank_result.is_blank:
+            return PreprocessResult(
+                image=image,
+                metadata=self._build_metadata(
+                    True, blank_result.confidence, blank_result.comment, []
+                ),
+            )
+        
+        # 3. Orientation
+        #oriented = self.rotation_detector._orient(gray)
+>>>>>>> 6a3291c243ff7e8b7d7eb1f368c971dd79a4a6b3
 
         if self.cv_cfg.get("enable_perspective", False):
             oriented = self._perspective_correct(oriented)
 
+<<<<<<< HEAD
         deskewed = self._deskew_pht(oriented)
+=======
+        # 5. Denoise
+        blurred = self._denoise(gray)
+>>>>>>> 6a3291c243ff7e8b7d7eb1f368c971dd79a4a6b3
 
         cropped = self._autocrop_yolov8(deskewed)
 
@@ -622,6 +642,8 @@ class Preprocessing:
 
         final_binarized = self._deep_learning_binarization_fallback(cropped, quality)
 
+        result = sharpened
+
         metadata = self._build_metadata(
             is_blank    = bool(blank_result.is_blank),
             orientation = float(orientation_result.angle),
@@ -629,5 +651,9 @@ class Preprocessing:
             comment     = blank_result.comment,
             qr_list     = qr_results,
         )
+<<<<<<< HEAD
 
         return PreprocessResult(image=final_binarized, metadata=metadata, quality=quality)
+=======
+        return PreprocessResult(image = result, metadata=metadata)
+>>>>>>> 6a3291c243ff7e8b7d7eb1f368c971dd79a4a6b3

@@ -30,7 +30,9 @@ class RotationDetector:
             angle = 0.0
             confidence = 0.0
             script = "Unknown"
-        
+
+        print(f"Ran rotation detection: {angle} degrees, confidence: {confidence / 100.0}")
+
         return RotationResult(
             angle = angle, 
             confidence = confidence / 100.0, 
