@@ -1,5 +1,5 @@
 from typing import Any
-from attr import dataclass
+from dataclasses import dataclass
 
 import numpy as np
 from pyzbar.pyzbar import decode, ZBarSymbol

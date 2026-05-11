@@ -3,8 +3,7 @@
 # ====================================================================
 # IMPORTS
 # --------------------------------------------------------------------
-from typing import Tuple
-from attr import dataclass
+from dataclasses import dataclass
 import numpy as np
 import joblib
 import cv2

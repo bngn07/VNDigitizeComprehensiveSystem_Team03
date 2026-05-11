@@ -1,4 +1,4 @@
-from attr import dataclass
+from dataclasses import dataclass
 
 import numpy as np
 import cv2
@@ -6,31 +6,7 @@ import cv2
 from .blank import BlankDetector
 from .code import CodeDetector
 from .rotate import RotationDetector
-
-'''
-# pipeline_config = {
-#     "blank_detector": {
-#         "model_path": "models/rf_blank_v1.joblib",
-#         "threshold": 0.65,
-#         "lower": 0.01,
-#         "upper": 0.98
-#     },
-#     "code_detector": {
-#         "types": ["QRCODE", "CODE128"]
-#     },
-#     "image_preprocessor": {
-#         "gaussian_blur": {"kernel_size": (5, 5), "sigma_x": 0},
-#         "enable_deskew": True,
-#         "deskew": {"max_angle": 45},
-#         "enable_autocrop": True,
-#         "adaptive_threshold": {"max_value": 255, "block_size": 11, "c": 2},
-#         "sharpening": {
-#             "enable": True,
-#             "kernel": [[0, -1, 0], [-1, 5, -1], [0, -1, 0]]
-#         }
-#     }
-# }
-'''
+from .geometry import *
 
 @dataclass
 class PreprocessResult:
@@ -113,7 +89,7 @@ class Preprocessing:
 
     def _deskew(self, gray: np.ndarray) -> np.ndarray:
         """
-        Detect skew using the largest contour's minAreaRect and rotate the image.
+        Detect skew using the minAreaRect of ALL foreground pixels.
         Returns the deskewed grayscale image.
         """
         if not self.cv_cfg.get("enable_deskew", True):
@@ -122,58 +98,45 @@ class Preprocessing:
         deskew_cfg = self.cv_cfg.get("deskew", {})
         max_angle = deskew_cfg.get("max_angle", 45)
 
-        # Invert + Otsu binarization to highlight foreground
-        inverted = cv2.bitwise_not(gray)
-        _, thresh = cv2.threshold(
-            inverted, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        gray_inv = cv2.bitwise_not(gray)
+        thresh = cv2.threshold(gray_inv, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
-        # Find contours and use the largest one
-        contours, _ = cv2.findContours(
-            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-        if not contours:
-            return gray
+        # Tìm tất cả các tọa độ pixel có giá trị > 0
+        coords = np.column_stack(np.where(thresh > 0))
+        angle = cv2.minAreaRect(coords)[-1]
 
-        largest = max(contours, key=cv2.contourArea)
-        angle = cv2.minAreaRect(largest)[-1]
-
-        # Normalize angle to [-45, 45]
+        # Điều chỉnh góc xoay
         if angle < -45:
-            angle = 90 + angle
-        elif angle > 45:
-            angle = angle - 90
+            angle = -(90 + angle)
+        else:
+            angle = -angle
 
-        # Clamp to configured maximum
-        angle = max(min(angle, max_angle), -max_angle)
-
+        # Xoay ảnh
         (h, w) = gray.shape[:2]
         center = (w // 2, h // 2)
         M = cv2.getRotationMatrix2D(center, angle, 1.0)
-        return cv2.warpAffine(
-            gray, M, (w, h),
-            flags=cv2.INTER_CUBIC,
-            borderMode=cv2.BORDER_REPLICATE,
-        )
+        rotated = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
-    def _autocrop(self, image: np.ndarray) -> np.ndarray:
-        """Crop empty borders using Otsu threshold + bounding box of non-zero pixels."""
+        return rotated
+
+    def _autocrop(self, gray: np.ndarray) -> np.ndarray:
         if not self.cv_cfg.get("enable_autocrop", True):
-            return image
+            return gray
 
+        inv = cv2.bitwise_not(gray)
         _, thresh = cv2.threshold(
-            image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
         coords = cv2.findNonZero(thresh)
         if coords is None:
-            cropped = image
-        else:
-            x, y, w, h = cv2.boundingRect(coords)
-            cropped = image[y:y + h, x:x + w]
+            return gray
 
-        if len(cropped.shape) == 3:
-            cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-        return cropped
+        x, y, w, h = cv2.boundingRect(coords)
+
+        if w * h < 0.1 * gray.shape[0] * gray.shape[1]:
+            return gray
+
+        return gray[y:y + h, x:x + w]
 
     def _adaptive_threshold(self, image: np.ndarray) -> np.ndarray:
         """Normalize background (yellowish paper, uneven lighting) via adaptive thresholding."""
@@ -201,25 +164,36 @@ class Preprocessing:
         )
         kernel = np.array(kernel_val)
         return cv2.filter2D(image, -1, kernel)
+    
+    def _perspective_correct(self, image: np.ndarray) -> np.ndarray:
+        """Detect document edges and apply perspective correction."""
 
-    def _orientation(self, image: np.ndarray) -> np.ndarray:
-        """Detect and correct orientation using Tesseract's OSD."""
-        result = self.rotation_detector.detect(image)
+        ratio = image.shape[0] / 500.0
+        image_resized = cv2.resize(image, (int(image.shape[1] / ratio), 500))
+        
+        doc_cnt = detect_document(image_resized)
 
-        if result.confidence < 0.1 or result.angle == 0:
-            print(f"Low confidence ({result.confidence:.2f}) in orientation detection, skipping rotation.")
+        if doc_cnt is None:
+            print("Không detect được document → fallback crop")
             return image
-        if result.angle == 90:
-            print("Rotating 90 degrees clockwise")
-            return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-        elif result.angle == 180:
-            print("Rotating 180 degrees")
-            return cv2.rotate(image, cv2.ROTATE_180)
-        elif result.angle == 270:
-            print("Rotating 270 degrees clockwise")
-            return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            
-        return image
+        
+        doc_cnt = doc_cnt.reshape(4, 2) * ratio
+        warped = four_point_transform(image, doc_cnt)
+
+        return warped
+
+    # def _transparent_to_white(self, image: np.ndarray) -> np.ndarray:
+    #     if image.ndim != 3 or image.shape[2] != 4:
+    #         return image
+
+    #     bgr = image[:, :, :3].astype(np.float32)
+    #     alpha = image[:, :, 3].astype(np.float32) / 255.0
+    #     alpha = alpha[:, :, np.newaxis]
+
+    #     white = np.full_like(bgr, 255.0)
+
+    #     composited = bgr * alpha + white * (1.0 - alpha)
+    #     return np.clip(composited, 0, 255).astype(np.uint8)
 
     @staticmethod
     def _build_metadata(is_blank: bool, confidence, comment, qr_list) -> dict:
@@ -231,44 +205,50 @@ class Preprocessing:
             "qr_codes": qr_list,
         }
 
-    def _process(self, image: np.ndarray) -> tuple[np.ndarray, dict]:
+    def _process(self, image: np.ndarray) -> PreprocessResult:
+        # # Make transparent pixels white.       
+        # image = self._transparent_to_white(image)
+
         # 1. Grayscale
         gray = self._to_grayscale(image)
 
-        # 2. Blank check (early exit)
+        # 2. Blank check
         blank_result = self.blank_detector.is_blank(gray)
         if blank_result.is_blank:
-            # return image, self._build_metadata(True, blank_result.confidence, blank_result.comment, [])
-
             return PreprocessResult(
-                image = image, 
-                metadata = self._build_metadata(True, blank_result.confidence, blank_result.comment, [])
+                image=image,
+                metadata=self._build_metadata(
+                    True, blank_result.confidence, blank_result.comment, []
+                ),
             )
+        
+        # 3. Orientation
+        #oriented = self.rotation_detector._orient(gray)
 
-        # 3. Denoise
+        # 4. Perspective
+        # corrected = self._perspective_correct(oriented)
+
+        # 5. Denoise
         blurred = self._denoise(gray)
 
-        # 4. Orientation correction
-        oriented = self._orientation(blurred)
+        # 6. Deskew
+        deskewed = self._deskew(blurred)
 
-        # 5. Deskew (operates on denoised grayscale)
-        deskewed = self._deskew(oriented)
-
-        # 6. Autocrop
+        # 7. Autocrop
         cropped = self._autocrop(deskewed)
 
-        # 7. QR / Barcode detection on the cleanest grayscale version
+        # 8. QR/Barcode
         qr_results = self.code_preprocessor.detect(cropped)
 
-        # 8. Adaptive threshold (background normalization)
+       # 10. Adaptive threshold
         normalized = self._adaptive_threshold(cropped)
 
-        # 9. Sharpening
+        # 9. Sharpen grayscale
         sharpened = self._sharpen(normalized)
 
-        metadata = self._build_metadata(False, blank_result.confidence, blank_result.comment, qr_results)
+        result = sharpened
 
-        return PreprocessResult(
-            image = sharpened, 
-            metadata = metadata
+        metadata = self._build_metadata(
+            False, blank_result.confidence, blank_result.comment, qr_results
         )
+        return PreprocessResult(image = result, metadata=metadata)
