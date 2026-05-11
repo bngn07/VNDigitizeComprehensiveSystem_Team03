@@ -232,7 +232,7 @@ class Preprocessing:
         blurred = self._denoise(gray)
 
         # 6. Deskew
-        deskewed = self._deskew(blurred)
+        deskewed = self._deskew(blurred)    
 
         # 7. Autocrop
         cropped = self._autocrop(deskewed)

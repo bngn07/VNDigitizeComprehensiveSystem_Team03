@@ -13,3 +13,6 @@ TO-DO
         + Pipeline?
     + OCRResult
         + What should it contain, how should text be stored.
+
+
+pull tragery
