@@ -1,6 +1,4 @@
 
-#   Convert OCRResult của (TextBlock) sang WordResult
-# ====================================================================
 from .ocr import OCRResult as GroupOCRResult
 from .schema import WordResult, OCRResult as MyOCRResult
 
@@ -8,10 +6,10 @@ from .schema import WordResult, OCRResult as MyOCRResult
 class OCRAdapter:
     def convert(self, group_result: GroupOCRResult) -> MyOCRResult:
         """
-        Nhận OCRResult
-        Trả về OCRResult (có WordResult, flagged, v.v.)
+        Nhận OCRResult từ nhóm (Task 1)
+        Trả về OCRResult của Task 3 (có WordResult, flagged, v.v.)
         """
-        # Trường hợp trả về raw string, không có TextBlock
+        # Trường hợp nhóm trả về raw string
         if isinstance(group_result.texts, str):
             return MyOCRResult(
                 words=[],
@@ -19,14 +17,21 @@ class OCRAdapter:
                 overall_confidence=0.0
             )
 
+        # Trường hợp list rỗng
+        if not group_result.texts:
+            return MyOCRResult(words=[])
+
         words = []
         for block in group_result.texts:
             # Lấy bounding box từ TextBlock
             x, y, width, height = block.bounding_box()
 
-            # Tách từng từ trong block (1 block có thể có nhiều từ)
+            # Tách từng từ trong block
             word_list = block.text.strip().split()
-            word_width = width // len(word_list) if word_list else width
+            if not word_list:
+                continue
+
+            word_width = width // len(word_list)
 
             for i, word in enumerate(word_list):
                 words.append(WordResult(
