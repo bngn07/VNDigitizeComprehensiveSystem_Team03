@@ -34,5 +34,6 @@
   },
   "tesseract": {
     "config": "--psm 0"
-  }
+  },
+  ""
 }

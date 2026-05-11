@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Union
 
-from ...ocr import OCRResult, TextBlock
+from ocr.ocr import OCRResult, TextBlock
 
 # @dataclass
 # class PostprocessResult:

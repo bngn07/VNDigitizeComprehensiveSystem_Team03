@@ -12,7 +12,7 @@ from .ocr import BaseOCR, OCRResult, TextBlock
 
 @dataclass
 class PaddleParams:
-    lang: str = 'en'
+    lang: str = 'vie'
     device: str = 'cpu'
     ocr_version: str = 'PP-OCRv5'
 
