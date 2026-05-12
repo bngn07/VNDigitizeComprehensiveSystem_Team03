@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import deque
 
 import numpy as np
 import cv2
@@ -59,6 +60,10 @@ class PreprocessResult:
 
         return "\n".join(parts)
 
+class PreprocessingParams:
+    def __init__(self):
+        self.a = 1
+
 class Preprocessing:
     def __init__(self, config: dict = None):
         self.config = config if config is not None else {}
@@ -72,6 +77,18 @@ class Preprocessing:
         self.rotation_detector = RotationDetector(**osd_config)
 
         self.cv_cfg = self.config.get("image_preprocessor", {})
+
+        self.step_menu = {
+            "transparent_to_white": self._transparent_to_white,
+            "grayscale": self._to_grayscale,
+            "orientation": self._orient_wrapper,
+            "perspective": self._perspective_correct,
+            "denoise": self._denoise,
+            "deskew": self._deskew,
+            "autocrop": self._autocrop,
+            "adaptive_threshold": self._adaptive_threshold,
+            "sharpen": self._sharpen,
+        }
 
     @staticmethod
     def _to_grayscale(image: np.ndarray) -> np.ndarray:
@@ -205,50 +222,48 @@ class Preprocessing:
             "qr_codes": qr_list,
         }
 
-    def _process(self, image: np.ndarray) -> PreprocessResult:
-        # # Make transparent pixels white.       
-        # image = self._transparent_to_white(image)
+    def _process(self, image: np.ndarray, recipe: str = None) -> PreprocessResult:
+        if recipe is None:
+            recipe = "grayscale, blank_check, denoise, deskew, autocrop, qr_detect, adaptive_threshold, sharpen"
 
-        # 1. Grayscale
-        gray = self._to_grayscale(image)
+        current_image = image.copy()
 
-        # 2. Blank check
-        blank_result = self.blank_detector.is_blank(gray)
-        if blank_result.is_blank:
-            return PreprocessResult(
-                image=image,
-                metadata=self._build_metadata(
-                    True, blank_result.confidence, blank_result.comment, []
-                ),
-            )
-        
-        # 3. Orientation
-        #oriented = self.rotation_detector._orient(gray)
+        # recipe -> queue
+        step_queue = deque([step.strip().lower() for step in recipe.split(",")])
 
-        # 4. Perspective
-        # corrected = self._perspective_correct(oriented)
+        is_blank = False
+        blank_confidence = 0.0
+        blank_comment = ""
+        qr_results = []
 
-        # 5. Denoise
-        blurred = self._denoise(gray)
+        while step_queue:
+            step_name = step_queue.popleft()
 
-        # 6. Deskew
-        deskewed = self._deskew(blurred)    
+            if step_name == "blank_check":
+                blank_result = self.blank_detector.is_blank(current_image)
+                if blank_result.is_blank:
+                    return PreprocessResult(
+                        image=image,
+                        metadata=self._build_metadata(
+                            True, blank_result.confidence, blank_result.comment, []
+                        ),
+                    )
+                else:
+                    blank_confidence = blank_result.confidence
+                    blank_comment = blank_result.comment
 
-        # 7. Autocrop
-        cropped = self._autocrop(deskewed)
+            elif step_name == "qr_detect":
+                qr_results = self.code_preprocessor.detect(current_image)
 
-        # 8. QR/Barcode
-        qr_results = self.code_preprocessor.detect(cropped)
-
-       # 10. Adaptive threshold
-        normalized = self._adaptive_threshold(cropped)
-
-        # 9. Sharpen grayscale
-        sharpened = self._sharpen(normalized)
-
-        result = sharpened
+            elif step_name in self.step_menu:
+                processing_function = self.step_menu[step_name]
+                current_image = processing_function(current_image)
+                
+            else:
+                print(f"'{step_name}' is NOT available!")
 
         metadata = self._build_metadata(
-            False, blank_result.confidence, blank_result.comment, qr_results
+            is_blank, blank_confidence, blank_comment, qr_results
         )
-        return PreprocessResult(image = result, metadata=metadata)
+        
+        return PreprocessResult(image=current_image, metadata=metadata)
