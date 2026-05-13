@@ -9,7 +9,6 @@ from paddleocr import PaddleOCR
 # -- own
 from .ocr import BaseOCR, OCRResult, TextBlock
 
-
 @dataclass
 class PaddleParams:
     lang: str = 'vie'

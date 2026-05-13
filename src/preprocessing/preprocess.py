@@ -1,53 +1,67 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-import numpy as np
+from collections import deque
+from dataclasses import dataclass, field
+
 import cv2
+import numpy as np
 
-from .blank import BlankDetector
 from .code import CodeDetector
+from .decide import (
+    DecisionEngine,
+    DecideML,
+    DecisionResult,
+    LABEL_SKIP,
+    LABEL_CLEAN,
+)
 from .rotate import RotationDetector
-from .geometry import *
+from .geometry import detect_document, four_point_transform
+
 
 @dataclass
 class PreprocessResult:
     image: np.ndarray
     metadata: dict
+    decision: DecisionResult | None = field(default=None, repr=False)
 
-    def __str__(self):
+    def __str__(self) -> str:
         parts = []
 
-        # Image info
         parts.append("IMAGE")
         if self.image is not None:
             h, w = self.image.shape[:2]
-            c = self.image.shape[2] if len(self.image.shape) > 2 else 1
+            c = self.image.shape[2] if self.image.ndim > 2 else 1
             parts.append(f"  size     : {w} x {h}")
             parts.append(f"  channels : {c}")
             parts.append(f"  dtype    : {self.image.dtype}")
         else:
             parts.append("  None")
 
-        # Metadata
-        status = self.metadata.get("status")
-        is_blank = self.metadata.get("is_blank", False)
-        confidence = self.metadata.get("confidence", 0.0)
-        qr_codes = self.metadata.get("qr_codes", [])
+        parts.append("\nDECISION")
+        if self.decision:
+            parts.append(f"  label      : {self.decision.label_name}")
+            parts.append(f"  confidence : {self.decision.confidence:.4f}")
+            parts.append(f"  recipe     : {self.decision.recipe}")
+            parts.append(
+                f"  probs      : "
+                f"{ {k: f'{v:.3f}' for k, v in self.decision.probs.items()} }"
+            )
+        else:
+            parts.append("  no decision (engine not loaded)")
 
         parts.append("\nMETADATA")
-        parts.append(f"  status     : {status}")
-        parts.append(f"  is_blank   : {is_blank}")
-        parts.append(f"  confidence : {confidence:.4f}")
-        parts.append(f"  qr_count   : {len(qr_codes)}")
+        parts.append(f"  status   : {self.metadata.get('status')}")
+        parts.append(f"  qr_count : {len(self.metadata.get('qr_codes', []))}")
 
-        # QR details
+        qr_codes = self.metadata.get("qr_codes", [])
         if qr_codes:
             parts.append("\nQR OBJECTS")
             for i, qr in enumerate(qr_codes, 1):
                 parts.append(f"  [{i}]")
-                
-                if hasattr(qr, '__dict__'):
+
+                if hasattr(qr, "__dict__"):
                     data = qr.__dict__
-                elif hasattr(qr, '__slots__'):
+                elif hasattr(qr, "__slots__"):
                     data = {s: getattr(qr, s) for s in qr.__slots__}
                 elif isinstance(qr, dict):
                     data = qr
@@ -59,75 +73,95 @@ class PreprocessResult:
 
         return "\n".join(parts)
 
+
 class Preprocessing:
-    def __init__(self, config: dict = None):
-        self.config = config if config is not None else {}
-
-        blank_config = self.config.get("blank_detector", {})
-        code_config = self.config.get("code_preprocessor", {})
-        osd_config = self.config.get("tesseract", {})
-
-        self.blank_detector = BlankDetector(**blank_config)
-        self.code_preprocessor = CodeDetector(**code_config)
-        self.rotation_detector = RotationDetector(**osd_config)
-
+    def __init__(self, config: dict | None = None) -> None:
+        self.config = config or {}
         self.cv_cfg = self.config.get("image_preprocessor", {})
+    
+        decide_cfg = dict(self.config.get("decide_engine", {}))
+        code_cfg = self.config.get("code_detector", {})
+        osd_cfg = self.config.get("tesseract", {})
+
+        if "provider" not in decide_cfg:
+            decide_cfg["provider"] = decide_cfg.pop("model_path", "")
+
+        self.engine = DecisionEngine(**decide_cfg)
+        self.code_detector = CodeDetector(**code_cfg)
+        self.rotation_detector = RotationDetector(**osd_cfg)
+
+        self._qr_buffer: list = []
+
+        self.step_menu: dict[str, callable] = {
+            "grayscale": self._to_grayscale,
+            "orientation": self._orient,
+            "perspective": self._perspective_correct,
+            "denoise": self._denoise,
+            "deskew": self._deskew,
+            "autocrop": self._autocrop,
+            "adaptive_threshold": self._adaptive_threshold,
+            "sharpen": self._sharpen,
+            "qr_detect": self._qr_detect,
+        }
 
     @staticmethod
     def _to_grayscale(image: np.ndarray) -> np.ndarray:
-        """Convert BGR image to grayscale. If already 1-channel, returns a copy."""
-        if len(image.shape) == 3:
+        if image.ndim == 3:
             return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         return image.copy()
 
     def _denoise(self, gray: np.ndarray) -> np.ndarray:
-        """Apply Gaussian blur for denoising."""
         gb_cfg = self.cv_cfg.get("gaussian_blur", {})
         k_size = tuple(gb_cfg.get("kernel_size", (5, 5)))
         sigma = gb_cfg.get("sigma_x", 0)
+
         return cv2.GaussianBlur(gray, k_size, sigma)
 
     def _deskew(self, gray: np.ndarray) -> np.ndarray:
-        """
-        Detect skew using the minAreaRect of ALL foreground pixels.
-        Returns the deskewed grayscale image.
-        """
         if not self.cv_cfg.get("enable_deskew", True):
             return gray
 
-        deskew_cfg = self.cv_cfg.get("deskew", {})
-        max_angle = deskew_cfg.get("max_angle", 45)
+        max_angle = self.cv_cfg.get("deskew", {}).get("max_angle", 45)
 
-        gray_inv = cv2.bitwise_not(gray)
-        thresh = cv2.threshold(gray_inv, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        thresh = cv2.threshold(
+            cv2.bitwise_not(gray),
+            0,
+            255,
+            cv2.THRESH_BINARY | cv2.THRESH_OTSU,
+        )[1]
 
-        # Tìm tất cả các tọa độ pixel có giá trị > 0
         coords = np.column_stack(np.where(thresh > 0))
         angle = cv2.minAreaRect(coords)[-1]
+        angle = -(90 + angle) if angle < -45 else -angle
 
-        # Điều chỉnh góc xoay
-        if angle < -45:
-            angle = -(90 + angle)
-        else:
-            angle = -angle
+        if abs(angle) > max_angle:
+            return gray
 
-        # Xoay ảnh
-        (h, w) = gray.shape[:2]
-        center = (w // 2, h // 2)
-        M = cv2.getRotationMatrix2D(center, angle, 1.0)
-        rotated = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+        h, w = gray.shape[:2]
 
-        return rotated
+        M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+
+        return cv2.warpAffine(
+            gray,
+            M,
+            (w, h),
+            flags=cv2.INTER_CUBIC,
+            borderMode=cv2.BORDER_REPLICATE,
+        )
 
     def _autocrop(self, gray: np.ndarray) -> np.ndarray:
         if not self.cv_cfg.get("enable_autocrop", True):
             return gray
 
-        inv = cv2.bitwise_not(gray)
-        _, thresh = cv2.threshold(
-            inv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        thresh = cv2.threshold(
+            cv2.bitwise_not(gray),
+            0,
+            255,
+            cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+        )[1]
+
         coords = cv2.findNonZero(thresh)
+
         if coords is None:
             return gray
 
@@ -139,116 +173,112 @@ class Preprocessing:
         return gray[y:y + h, x:x + w]
 
     def _adaptive_threshold(self, image: np.ndarray) -> np.ndarray:
-        """Normalize background (yellowish paper, uneven lighting) via adaptive thresholding."""
-        thresh_cfg = self.cv_cfg.get(
+        cfg = self.cv_cfg.get(
             "adaptive_threshold",
-            {"max_value": 255, "block_size": 11, "c": 2},
+            {
+                "max_value": 255,
+                "block_size": 11,
+                "c": 2,
+            },
         )
+
         return cv2.adaptiveThreshold(
             image,
-            thresh_cfg["max_value"],
+            cfg["max_value"],
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY,
-            thresh_cfg["block_size"],
-            thresh_cfg["c"],
+            cfg["block_size"],
+            cfg["c"],
         )
 
     def _sharpen(self, image: np.ndarray) -> np.ndarray:
-        """Sharpen text using a 3x3 kernel."""
         sharp_cfg = self.cv_cfg.get("sharpening", {})
+
         if not sharp_cfg.get("enable", True):
             return image
 
-        kernel_val = sharp_cfg.get(
-            "kernel", [[0, -1, 0], [-1, 5, -1], [0, -1, 0]]
+        kernel = np.array(
+            sharp_cfg.get(
+                "kernel",
+                [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
+            )
         )
-        kernel = np.array(kernel_val)
-        return cv2.filter2D(image, -1, kernel)
-    
-    def _perspective_correct(self, image: np.ndarray) -> np.ndarray:
-        """Detect document edges and apply perspective correction."""
 
+        return cv2.filter2D(image, -1, kernel)
+
+    def _perspective_correct(self, image: np.ndarray) -> np.ndarray:
         ratio = image.shape[0] / 500.0
-        image_resized = cv2.resize(image, (int(image.shape[1] / ratio), 500))
-        
-        doc_cnt = detect_document(image_resized)
+
+        image_small = cv2.resize(
+            image,
+            (int(image.shape[1] / ratio), 500),
+        )
+
+        doc_cnt = detect_document(image_small)
 
         if doc_cnt is None:
-            print("Không detect được document → fallback crop")
+            print(
+                "WARN [perspective_correct] "
+                "no document contour found → skipping."
+            )
             return image
-        
+
         doc_cnt = doc_cnt.reshape(4, 2) * ratio
-        warped = four_point_transform(image, doc_cnt)
 
-        return warped
+        return four_point_transform(image, doc_cnt)
 
-    # def _transparent_to_white(self, image: np.ndarray) -> np.ndarray:
-    #     if image.ndim != 3 or image.shape[2] != 4:
-    #         return image
+    def _orient(self, image: np.ndarray) -> np.ndarray:
+        return self.rotation_detector.correct(image)
 
-    #     bgr = image[:, :, :3].astype(np.float32)
-    #     alpha = image[:, :, 3].astype(np.float32) / 255.0
-    #     alpha = alpha[:, :, np.newaxis]
-
-    #     white = np.full_like(bgr, 255.0)
-
-    #     composited = bgr * alpha + white * (1.0 - alpha)
-    #     return np.clip(composited, 0, 255).astype(np.uint8)
+    def _qr_detect(self, image: np.ndarray) -> np.ndarray:
+        self._qr_buffer.extend(self.code_detector.detect(image))
+        return image
 
     @staticmethod
-    def _build_metadata(is_blank: bool, confidence, comment, qr_list) -> dict:
+    def _build_metadata(status: str, qr_list: list) -> dict:
         return {
-            "status": "success",
-            "is_blank": is_blank,
-            "confidence": confidence,
-            "comment": comment,
+            "status": status,
             "qr_codes": qr_list,
         }
 
-    def _process(self, image: np.ndarray) -> PreprocessResult:
-        # # Make transparent pixels white.       
-        # image = self._transparent_to_white(image)
+    def process(self, image: np.ndarray) -> PreprocessResult:
+        self._qr_buffer = []
 
-        # 1. Grayscale
-        gray = self._to_grayscale(image)
+        decision = self.engine.evaluate(image)
 
-        # 2. Blank check
-        blank_result = self.blank_detector.is_blank(gray)
-        if blank_result.is_blank:
+        if decision.label == LABEL_SKIP:
             return PreprocessResult(
                 image=image,
-                metadata=self._build_metadata(
-                    True, blank_result.confidence, blank_result.comment, []
-                ),
+                metadata=self._build_metadata("skipped_blank", []),
+                decision=decision,
             )
-        
-        # 3. Orientation
-        #oriented = self.rotation_detector._orient(gray)
 
-        # 4. Perspective
-        # corrected = self._perspective_correct(oriented)
+        current = image.copy()
 
-        # 5. Denoise
-        blurred = self._denoise(gray)
-
-        # 6. Deskew
-        deskewed = self._deskew(blurred)    
-
-        # 7. Autocrop
-        cropped = self._autocrop(deskewed)
-
-        # 8. QR/Barcode
-        qr_results = self.code_preprocessor.detect(cropped)
-
-       # 10. Adaptive threshold
-        normalized = self._adaptive_threshold(cropped)
-
-        # 9. Sharpen grayscale
-        sharpened = self._sharpen(normalized)
-
-        result = sharpened
-
-        metadata = self._build_metadata(
-            False, blank_result.confidence, blank_result.comment, qr_results
+        step_queue = deque(
+            step.strip().lower()
+            for step in decision.recipe.split(",")
         )
-        return PreprocessResult(image = result, metadata=metadata)
+
+        while step_queue:
+            step = step_queue.popleft()
+
+            if step in self.step_menu:
+                current = self.step_menu[step](current)
+            else:
+                print(
+                    f"WARN [Preprocessing] "
+                    f"unknown step '{step}' — skipping."
+                )
+
+        status = (
+            "clean"
+            if decision.label == LABEL_CLEAN
+            else "heavy"
+        )
+
+        return PreprocessResult(
+            image=current,
+            metadata=self._build_metadata(status, self._qr_buffer),
+            decision=decision,
+        )

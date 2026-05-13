@@ -1,0 +1,25 @@
+============================================================
+DECIDE MODEL — TRAINING REPORT
+============================================================
+
+5-Fold CV Accuracy: 0.9962 ± 0.0016 (per fold: [0.9949 0.9949 0.9974 0.9987 0.9949])
+
+Classification Report (hold-out test set):
+------------------------------------------------------------
+                   precision    recall  f1-score   support
+
+     SKIP (blank)     1.0000    0.9850    0.9924       133
+ HEAVY (degraded)     1.0000    0.9938    0.9969       482
+CLEAN (OCR-ready)     0.9865    1.0000    0.9932       365
+
+         accuracy                         0.9949       980
+        macro avg     0.9955    0.9929    0.9942       980
+     weighted avg     0.9950    0.9949    0.9949       980
+
+Confusion Matrix (rows=true, cols=predicted):
+------------------------------------------------------------
+Classes: ['SKIP (blank)', 'HEAVY (degraded)', 'CLEAN (OCR-ready)']
+[[131   0   2]
+ [  0 479   3]
+ [  0   0 365]]
+============================================================
