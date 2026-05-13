@@ -9,6 +9,7 @@ from ocr.ocr                        import BaseOCR, OCRResult
 
 @dataclass
 class DigitizeResult:
+    image:      np.ndarray
     preprocess: PreprocessResult
     ocr:        OCRResult
 
@@ -24,7 +25,11 @@ class Digitize:
         pre    = self.preprocess.process(image)
         raw    = self.ocr.recognize(pre.image)
         result = self.postprocess.process(raw)
-        return DigitizeResult(preprocess=pre, ocr=result)
+        return DigitizeResult(
+            image = pre.image,
+            preprocess = pre, 
+            ocr = result
+            )
 
     def _digitize_batch(self, images: list[np.ndarray]) -> list[DigitizeResult]:
         pres    = [self.preprocess.process(img) for img in images]
