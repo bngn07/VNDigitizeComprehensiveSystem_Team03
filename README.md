@@ -17,4 +17,10 @@ TO-DO
         + Pipeline?
     + OCRResult
         + What should it contain, how should text be stored.
+<<<<<<< HEAD
 >>>>>>> main
+=======
+
+
+pull tragery
+>>>>>>> fe2f310f223f6f7bc24c8ffe46bf75500df9bbc7
