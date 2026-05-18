@@ -1,66 +1,43 @@
 # -- built in --
 import os
+import re
+import json
+import time
+import math
+import logging
 from dataclasses import dataclass
+from typing import Optional, Type, Tuple, Any, List
 
 # -- third party --
 from google import genai
 from google.genai import types
+from json_repair import repair_json
+from tqdm.auto import tqdm
 
 # -- self-defined --
-from .base import (
-        ExtractorResult, 
-        BaseExtractor, 
-        TextInput, T)
+from .base import ExtractorResult, BaseExtractor, TextInput, T
 from .prompt import Prompt
+from .schema import auto_detect_schema
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class GeminiParams:
-    model_name: str = "gemini-2.5-flash"
-    temperature: float = 0.1
+    model_name: str = "gemini-2.0-flash"
+    temperature: float = 0.0
+    max_output_tokens: int = 512
+    max_input_chars: int = 3000
+    max_input_chars_retry: int = 1500
+    batch_size: int = 10
+    batch_poll_interval: int = 20
+    batch_timeout_sec: int = 7200
+    max_retries: int = 2
+    retry_delay: float = 1.5
+    low_confidence_threshold: float = 0.65
 
 
-class GeminiExtractor(BaseExtractor):
+# ── UTILS (JSON Parser & Confidence Scorer) ──────────────────────
+def clean_and_parse(raw: str, doc_id: str = "") -> Optional[dict]:
+    raw = raw.strip()
+    m = re.search(r"http://googleusercontent.com/immersive_entry_chip/0", raw)
 
-    def __init__(self, params: GeminiParams | None = None, **kwargs) -> None:
-        self.params = params or GeminiParams()
-        self._client: object = None
-        self._types: object = None
-
-        self._get_client()
-        super().__init__()
-
-    def _get_client(self) -> object:
-        if self._client is not None:
-            return self._client
-
-        key = os.environ.get("GOOGLE_API_KEY", "")
-        if not key:
-            raise EnvironmentError(
-                "GOOGLE_API_KEY is not set. "
-                "Pass GOOGLE_API_KEY to OS environment."
-            )
-
-        self._client = genai.Client(api_key=key)
-        self._types = types
-        return self._client
-
-    def _build_prompt(self, input_text: TextInput) -> Prompt:
-        return Prompt.build(ocr_text = input_text)
-
-    def _extract_single(self, input_text: TextInput, schema: type[T]) -> ExtractorResult[T]:
-        client = self._client
-        prompt = self._build_prompt(input_text)
-
-        response = client.models.generate_content(
-            model=self.params.model_name,
-            contents=prompt.text,
-            config=self._types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=schema,
-                temperature=self.params.temperature,
-            ),
-        )
-        
-        record = schema.model_validate_json(response.text.strip())
-        return ExtractorResult(record = record)
