@@ -14,18 +14,99 @@ class DocumentExtractor:
         co_quan = ""
         if words:
             co_quan = self._extract_co_quan_by_position(words)
-            # Kết quả quá ngắn (< 3 từ) thì tìm tiếp ở giữa trang
             if not co_quan or len(co_quan.split()) < 3:
                 co_quan = self._extract_co_quan_by_center(words)
         if not co_quan:
             co_quan = self._extract_co_quan(raw_text)
 
+        def make_field(field_name, value, words=None):
+            confidence  = self._calc_confidence(value, words) if value else 0.0
+            bounding_box = self._find_bounding_box(value, words) if value and words else None
+            return {
+                "field_name":   field_name,
+                "value":        value,
+                "confidence":   confidence,
+                "bounding_box": bounding_box,
+            }
+
         return {
-            "ten_loai_van_ban": self._extract_ten_loai(raw_text)   or None,
-            "so_van_ban":       self._extract_so_van_ban(raw_text) or None,
-            "ngay_thang_nam":   self._extract_ngay(raw_text)       or None,
-            "co_quan_ban_hanh": co_quan                            or None,
+            "metadata": [
+                make_field("ten_loai_van_ban", self._extract_ten_loai(raw_text)   or None, words),
+                make_field("so_van_ban",       self._extract_so_van_ban(raw_text) or None, words),
+                make_field("ky_hieu",          self._extract_ky_hieu(raw_text)    or None, words),
+                make_field("ngay_thang_nam",   self._extract_ngay(raw_text)       or None, words),
+                make_field("co_quan_ban_hanh", co_quan                            or None, words),
+            ]
         }
+
+    def _calc_confidence(self, value: str, words: list) -> float:
+        if not value or not words:
+            return 0.0
+
+        value_words  = value.lower().split()
+        matched_conf = []
+
+        for w in words:
+            if w.text.lower() in value_words:
+                matched_conf.append(w.confidence)
+
+        if not matched_conf:
+            return 0.0
+
+        return round(sum(matched_conf) / len(matched_conf), 4)
+
+    def _find_bounding_box(self, value: str, words: list) -> dict | None:
+        if not value or not words:
+            return None
+
+        value_words   = value.lower().split()
+        matched_words = [w for w in words if w.text.lower() in value_words]
+
+        if not matched_words:
+            return None
+
+        x1 = min(w.x for w in matched_words)
+        y1 = min(w.y for w in matched_words)
+        x2 = max(w.x + w.width  for w in matched_words)
+        y2 = max(w.y + w.height for w in matched_words)
+
+        return {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
+
+    def _extract_ky_hieu(self, text: str) -> str:
+        """
+        Ký hiệu là phần chữ sau số trong số văn bản
+        Ví dụ: 573/2026/QĐ-PT → ký hiệu là QĐ-PT
+            03/2022/DSST    → ký hiệu là DSST
+            1328/QĐ-UBND   → ký hiệu là QĐ-UBND
+        """
+        header   = text[:400]
+        patterns = [
+            r"[Ss][ôo][t]?\s*:\s*[0-9]+/[0-9]+/([A-ZĐa-zđ\-]+)",
+            r"[Ss]ố[t]?\s*:\s*[0-9]+/[0-9]+/([A-ZĐa-zđ\-]+)",
+            r"[Ss][ôo][t]?\s*:\s*[0-9]+/([A-ZĐa-zđ\-]+)",
+            r"[Ss]ố[t]?\s*:\s*[0-9]+/([A-ZĐa-zđ\-]+)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, header)
+            if match:
+                return match.group(1).strip(".,;: ")
+        return ""
+
+    def _extract_ngay(self, text: str) -> str:
+        """Ngày tháng năm — chuẩn hóa về DD/MM/YYYY"""
+        patterns = [
+            r",\s*[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
+            r"[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
+            r"[ÀàẤấÂâẦầẢảÃãẬậ]y\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
+            r"[Nn]gày\s*:\s*(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{4})",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                d, m, y = match.groups()
+                # Chuẩn hóa về DD/MM/YYYY
+                return f"{int(d):02d}/{int(m):02d}/{y}"
+        return ""
 
     def _extract_ten_loai(self, text: str) -> str:
         header     = text[:300]
@@ -93,20 +174,6 @@ class DocumentExtractor:
                 result = match.group(1).strip(".,;: ")
                 result = result.replace(" ", "")
                 return result
-        return ""
-
-    def _extract_ngay(self, text: str) -> str:
-        patterns = [
-            r",\s*[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
-            r"[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
-            r"[ÀàẤấÂâẦầẢảÃãẬậ]y\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
-            r"[Nn]gày\s*:\s*(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{4})",
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                d, m, y = match.groups()
-                return f"{d}/{m}/{y}"
         return ""
 
     def _extract_co_quan_by_position(self, words) -> str:
@@ -231,7 +298,6 @@ class DocumentExtractor:
         return " ".join(result_lines).strip(".,;:-'\"")
     
     def _extract_co_quan(self, text: str) -> str:
-        """Fallback dùng regex khi không có words"""
         patterns = [
             # Tòa án các cấp
             r"(TÒA ÁN NHÂN \S+(?:\s+\S+){1,5})(?=\s+(?:CỘNG|Độc|độc|Với|TẠI|tại|\-))",
