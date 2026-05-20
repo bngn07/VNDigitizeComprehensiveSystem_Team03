@@ -3,6 +3,9 @@ from typing import Union
 
 from ocr.ocr import OCRResult, TextBlock
 
+from extracting.base import BaseExtractor  # Giả định class base từ extracting/base.py
+from extracting.gemini import GeminiExtractor  # Hoặc GemmaExtractor tùy thuộc cấu hình hệ thống
+from extracting.schema import ExtractionSchema
 # @dataclass
 # class PostprocessResult:
 #     full_text: str
