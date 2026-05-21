@@ -60,40 +60,50 @@ class DocumentExtractor:
         return round(sum(matched_conf) / len(matched_conf), 4)
 
     def _find_bounding_box(self, value: str, words: list) -> dict | None:
-        """
-        Tìm bounding box của value dựa trên tọa độ các từ khớp
-        """
+
         if not value or not words:
             return None
 
         import re
-        tokens = re.findall(r'[0-9]+|[A-ZĐa-zđÀ-ỹ]+', value.lower())
 
-        matched_words = []
-        for w in words:
-            w_tokens = re.findall(r'[0-9]+|[A-ZĐa-zđÀ-ỹ]+', w.text.lower())
-            for wt in w_tokens:
-                if wt in tokens and len(wt) > 1:
-                    matched_words.append(w)
-                    break
-
-        if not matched_words:
+        value_tokens = re.findall(r'[0-9]+|[A-ZĐa-zđÀ-ỹ]+', value.lower())
+        if not value_tokens:
             return None
 
-        x1 = min(w.x for w in matched_words)
-        y1 = min(w.y for w in matched_words)
-        x2 = max(w.x + w.width  for w in matched_words)
-        y2 = max(w.y + w.height for w in matched_words)
+        sorted_words = sorted(words, key=lambda w: (w.y // 20, w.x))
+
+        best_match  = None
+        best_score  = 0
+        window_size = max(1, len(value_tokens))
+
+        for i in range(len(sorted_words)):
+            window = sorted_words[i:i + window_size]
+            if not window:
+                continue
+
+            window_tokens = []
+            for w in window:
+                wt = re.findall(r'[0-9]+|[A-ZĐa-zđÀ-ỹ]+', w.text.lower())
+                window_tokens.extend(wt)
+
+            matched = sum(1 for t in value_tokens if t in window_tokens and len(t) > 1)
+            score   = matched / len(value_tokens) if value_tokens else 0
+
+            if score > best_score:
+                best_score = score
+                best_match = window
+
+        if not best_match or best_score < 0.3:
+            return None
+
+        x1 = min(w.x for w in best_match)
+        y1 = min(w.y for w in best_match)
+        x2 = max(w.x + w.width  for w in best_match)
+        y2 = max(w.y + w.height for w in best_match)
 
         return {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
-
+    
     def _extract_ky_hieu(self, text: str) -> str:
-        """
-        Ký hiệu là phần chữ sau số trong số văn bản
-        Ví dụ: 573/2026/QĐ-PT → ký hiệu là QĐ-PT
-            03/2022/DSST    → ký hiệu là DSST
-            1328/QĐ-UBND   → ký hiệu là QĐ-UBND
-        """
         header   = text[:400]
         patterns = [
             r"[Ss][ôo][t]?\s*:\s*[0-9]+/[0-9]+/([A-ZĐa-zđ\-]+)",
@@ -108,7 +118,6 @@ class DocumentExtractor:
         return ""
 
     def _extract_ngay(self, text: str) -> str:
-        """Ngày tháng năm — chuẩn hóa về DD/MM/YYYY"""
         patterns = [
             r",\s*[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",
             r"[Nn]gày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})",

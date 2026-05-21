@@ -16,6 +16,9 @@ IMAGE_PATHS = [
     "dataset/dataset/27.png",
     "dataset/dataset/1.png",
     "dataset/dataset/18.png",
+    "dataset/dataset/20.png",
+    "dataset/dataset/30.png",
+    "dataset/dataset/img1.png",
 ]
 
 params      = TesseractParams(language="vie")
