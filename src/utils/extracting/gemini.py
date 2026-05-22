@@ -13,6 +13,7 @@ from typing import Optional, Type, Tuple, Any, List, Dict
 from google import genai
 from google.genai import types
 from json_repair import repair_json
+from pydantic import BaseModel
 from tqdm.auto import tqdm
 
 # -- internal --
@@ -84,10 +85,15 @@ def _parse_input_doc(doc: dict) -> Tuple[str, str, str]:
     return str(doc_id), str(raw), doc.get("schema_type", "")
 
 
-def _resolve_schema(doc_id: str, raw_text: str, schema_hint: str) -> Tuple[str, Type]:
+def _resolve_schema(doc_id: str, raw_text: str, schema_hint: str) -> Tuple[str, Type[BaseModel]]:
     if schema_hint and schema_hint in SCHEMA_REGISTRY:
         return schema_hint, SCHEMA_REGISTRY[schema_hint]
-    return auto_detect_schema(raw_text)
+    schema_name = auto_detect_schema(raw_text)
+    schema_class = SCHEMA_REGISTRY.get(schema_name)
+    if schema_class is None:
+        from .schema import DonTuCamKetSchema
+        schema_class = DonTuCamKetSchema
+    return schema_name, schema_class
 
 
 def _build_result(
@@ -155,7 +161,7 @@ class GeminiExtractor(BaseExtractor):
         if schema is not None:
             schema_name, schema_class = schema.__name__, schema
         else:
-            schema_name, schema_class = auto_detect_schema(text)
+            schema_name, schema_class = _resolve_schema(doc_id, text, "")
 
         last_raw = ""
         for attempt in range(1, self.params.max_retries + 2):
