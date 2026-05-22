@@ -2,14 +2,20 @@ from symspellpy import SymSpell, Verbosity
 import sys, re
 from pathlib import Path
 from typing import List, Tuple
-from .ngram import BigramLanguageModel # type: ignore
-
+from .ngram import BigramLanguageModel 
+from unidecode import unidecode
 root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
-
 from .correction_type import Correction
 
+OCR_NORMALIZATION = {
+    "0": "o",
+    "1": "l",
+    "4": "a",
+    "5": "s",
+    "8": "b"
+}
 
 class DictionaryCorrector:
     """Sửa lỗi sử dụng từ điển"""
@@ -27,7 +33,9 @@ class DictionaryCorrector:
         else:
             print("Không tìm thấy corpus.txt")
         
-
+    def remove_accent(self, text: str) -> str:
+        return unidecode(text).lower()
+    
     def _load_dictionary(self):
         try:
             from symspellpy import SymSpell, Verbosity
@@ -44,6 +52,12 @@ class DictionaryCorrector:
         except ImportError:
             print(" symspellpy chưa được cài. Cài bằng lệnh: pip install symspellpy")
             self.sym_spell = None
+    
+    def normalize_ocr_token(self, word: str) -> str:
+        normalized = word.lower()
+        for wrong, correct in OCR_NORMALIZATION.items():
+            normalized = normalized.replace(wrong, correct)
+        return normalized
 
     def correct_word(self, word: str, next_word: str = "") -> str:
 
@@ -72,24 +86,30 @@ class DictionaryCorrector:
             return word
         
         # Generate candidates
-        suggestions = self.sym_spell.lookup(word, self.Verbosity.CLOSEST, max_edit_distance=1)
+        normalized_word = self.normalize_ocr_token(word)
+        suggestions = self.sym_spell.lookup(normalized_word, self.Verbosity.CLOSEST, max_edit_distance=1)
         if not suggestions:
             return word
 
         # Lấy candidate list
         candidates = []
         for s in suggestions:
-            if s.distance <= 1:
+            candidate_no_accent = self.remove_accent(s.term)
+            if candidate_no_accent == normalized_word:
                 candidates.append(s.term)
         if not candidates:
                 return word
         
         # Nếu không có context
         if not next_word:
+            if candidates:
+                return candidates[0]
             return word
         
+        normalized_next_word = self.normalize_ocr_token(next_word)
+        
         # Bigram reranking
-        best_candidate = self.ngram_model.rank_candidates(next_word=next_word, candidates=candidates)
+        best_candidate = self.ngram_model.rank_candidates(next_word=normalized_next_word, candidates=candidates)
 
         if best_candidate and best_candidate != word:
             return best_candidate
@@ -146,3 +166,6 @@ class DictionaryCorrector:
             corrected[i] = " ".join(corrected_words)
 
         return corrected, corrections
+    
+    
+    
