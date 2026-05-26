@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Union
 
 from ocr.ocr import OCRResult, TextBlock
+from src.utils.extractor import DocumentExtractor
 
 from extracting.base import BaseExtractor  # Giả định class base từ extracting/base.py
 from extracting.gemini import GeminiExtractor  # Hoặc GemmaExtractor tùy thuộc cấu hình hệ thống
@@ -15,6 +16,7 @@ from extracting.schema import ExtractionSchema
 class Postprocessing:  
     def __init__(self, config: dict = None):
         self.config = config if config is not None else {}
+        self.extractor = DocumentExtractor()
 
     def _merge_lines(
             self, 
@@ -85,3 +87,19 @@ class Postprocessing:
 
     def process(self, raw_blocks: OCRResult) -> OCRResult:
         return self._merge_lines(raw_blocks.texts)
+
+    def process_and_extract(self, raw_blocks: OCRResult, words: list = None) -> dict:
+        
+        merged = self._merge_lines(raw_blocks.texts)
+
+        if isinstance(merged.texts, str):
+            raw_text = merged.texts
+        else:
+            raw_text = " ".join(b.text for b in merged.texts)
+
+        fields = self.extractor.extract(raw_text, words=words)
+
+        return {
+            "ocr_result": merged,
+            "fields":     fields,
+        }
