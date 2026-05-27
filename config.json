@@ -1,38 +1,205 @@
 {
-  "blank_detector": {
-    "model_path": "models/rf_blank_detector.joblib",
-    "threshold": 0.65,
-    "lower": 0.01,
-    "upper": 0.98
+  "decide_engine": {
+    "provider": "models/rf_blank_detector.joblib",
+    "skip_threshold": 0.65,
+    "clean_threshold": 0.5,
+    "missing_model_policy": "fallback",
+    "warn_on_missing_model": true,
+    "feature_extraction": {
+      "grayscale_conversion_code": "COLOR_BGR2GRAY",
+      "resize_width": 500,
+      "resize_height": 500,
+      "resize_interpolation": "INTER_AREA",
+      "white_ratio_tolerance": 20,
+      "laplacian_ddepth": "CV_64F",
+      "edge_density_canny_threshold1": 100,
+      "edge_density_canny_threshold2": 200,
+      "coeff_variation_epsilon": 1e-6
+    },
+    "fallback_rules": {
+      "skip_white_ratio_gt": 0.95,
+      "skip_std_lt": 15.0,
+      "clean_laplacian_var_lt": 500.0,
+      "clean_coeff_lt": 0.12
+    },
+    "recipes": {
+      "1": null,
+      "2": "grayscale, denoise, adaptive_threshold, deskew, autocrop, qr_detect, sharpen",
+      "3": "grayscale, deskew, autocrop, qr_detect"
+    },
+    "label_names": {
+      "1": "SKIP",
+      "2": "HEAVY",
+      "3": "CLEAN"
+    },
+    "feature_keys": [
+      "white_ratio",
+      "std_val",
+      "coeff_variation",
+      "laplacian_var",
+      "mean_intensity",
+      "edge_density"
+    ]
   },
-  "code_preprocessor": {
-    "types": []
+  "code_detector": {
+    "types": [],
+    "empty_image_policy": "return_empty",
+    "invalid_types_policy": "raise",
+    "decode_encoding": "utf-8",
+    "decode_errors": "replace",
+    "bbox_format": "ltwh",
+    "include_polygon": true,
+    "include_quality": true,
+    "include_orientation": true,
+    "include_raw_bytes": false,
+    "dedupe_by_content": false
+  },
+  "geometry": {
+    "grayscale_conversion_code": "COLOR_BGR2GRAY",
+    "document_detection": {
+      "blur_kernel_size": [
+        3,
+        3
+      ],
+      "blur_sigma_x": 0,
+      "canny_threshold1": 30,
+      "canny_threshold2": 100,
+      "morph_kernel_size": [
+        5,
+        5
+      ],
+      "morph_kernel_dtype": "uint8",
+      "dilate_iterations": 1,
+      "erode_iterations": 1,
+      "contour_retrieval_mode": "RETR_LIST",
+      "contour_approx_method": "CHAIN_APPROX_SIMPLE",
+      "top_k_contours": 10,
+      "polygon_epsilon_ratio": 0.02,
+      "polygon_closed": true,
+      "required_polygon_vertices": 4,
+      "sort_contours_desc": true
+    },
+    "perspective_transform": {
+      "output_dtype": "float32",
+      "interpolation": "INTER_LINEAR",
+      "border_mode": "BORDER_CONSTANT",
+      "border_value": 0
+    }
   },
   "image_preprocessor": {
-    "enable_deskew": true,
-    "deskew": {
-      "max_angle": 45
+    "recipe_separator": ",",
+    "unknown_step_policy": "skip",
+    "warn_on_unknown_step": true,
+    "warn_on_perspective_skip": true,
+    "empty_image_policy": "raise",
+    "copy_input_image": true,
+    "status_map": {
+      "skip": "skipped_blank",
+      "clean": "clean",
+      "heavy": "heavy"
     },
-    "enable_autocrop": true,
+    "metadata_keys": {
+      "status": "status",
+      "qr_codes": "qr_codes"
+    },
+    "grayscale": {
+      "enabled": true,
+      "conversion_code": "COLOR_BGR2GRAY"
+    },
     "gaussian_blur": {
-      "kernel_size": [5, 5],
+      "enabled": true,
+      "kernel_size": [
+        5,
+        5
+      ],
       "sigma_x": 0
     },
+    "deskew": {
+      "enabled": true,
+      "threshold": {
+        "max_value": 255,
+        "mode": "THRESH_BINARY|THRESH_OTSU"
+      },
+      "angle_switch_threshold": -45,
+      "max_angle": 45,
+      "rotation_scale": 1.0,
+      "interpolation": "INTER_CUBIC",
+      "border_mode": "BORDER_REPLICATE",
+      "border_value": 0,
+      "min_foreground_pixels": 1
+    },
+    "autocrop": {
+      "enabled": true,
+      "threshold": {
+        "max_value": 255,
+        "mode": "THRESH_BINARY|THRESH_OTSU"
+      },
+      "min_area_ratio": 0.1
+    },
     "adaptive_threshold": {
+      "enabled": true,
       "max_value": 255,
+      "method": "ADAPTIVE_THRESH_GAUSSIAN_C",
+      "threshold_type": "THRESH_BINARY",
       "block_size": 11,
       "c": 2
     },
     "sharpening": {
       "enable": true,
       "kernel": [
-        [0, -1, 0],
-        [-1, 5, -1],
-        [0, -1, 0]
-      ]
+        [
+          0,
+          -1,
+          0
+        ],
+        [
+          -1,
+          5,
+          -1
+        ],
+        [
+          0,
+          -1,
+          0
+        ]
+      ],
+      "ddepth": -1
+    },
+    "perspective": {
+      "enabled": true,
+      "resize_height": 500,
+      "resize_interpolation": "INTER_LINEAR",
+      "on_document_not_found": "return_original"
     }
   },
   "tesseract": {
-    "config": "--psm 0"
+    "config": "--psm 0",
+    "lang": null,
+    "nice": 0,
+    "timeout": 0,
+    "min_confidence": 0.1,
+    "normalize_confidence": true,
+    "confidence_scale": 100.0,
+    "unknown_script_value": "Unknown",
+    "empty_image_policy": "return_default",
+    "error_policy": "return_default",
+    "warn_on_error": true,
+    "verbose": false,
+    "apply_rotation": true,
+    "skip_if_angle_zero": true,
+    "supported_angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "angle_to_rotation_map": {
+      "90": "ROTATE_90_CLOCKWISE",
+      "180": "ROTATE_180",
+      "270": "ROTATE_90_COUNTERCLOCKWISE"
+    },
+    "on_error_angle": 0.0,
+    "on_error_confidence": 0.0,
+    "on_error_script": "Unknown"
   }
 }

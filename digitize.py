@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+from typing import Any
 
 from src.preprocessing.preprocess   import Preprocessing, PreprocessResult
 from src.postprocessing.postprocess import Postprocessing
@@ -13,9 +14,8 @@ class DigitizeResult:
     preprocess: PreprocessResult
     ocr:        OCRResult
 
-
 class Digitize:
-    def __init__(self, ocr: BaseOCR, config: dict = None) -> None:
+    def __init__(self, ocr: BaseOCR, config: dict[str, Any] | None = None) -> None:
         config = config or {}
         self.preprocess  = Preprocessing(config.get("preprocessing", {}))
         self.postprocess = Postprocessing(config.get("postprocessing", {}))
@@ -35,7 +35,14 @@ class Digitize:
         pres    = [self.preprocess.process(img) for img in images]
         raws    = self.ocr.recognize([p.image for p in pres])
         results = [self.postprocess.process(r) for r in raws]
-        return [DigitizeResult(preprocess=p, ocr=r) for p, r in zip(pres, results)]
+        return [
+            DigitizeResult(
+                image = p.image,
+                preprocess = p,
+                ocr = r,
+            )
+            for p, r in zip(pres, results)
+        ]
 
     def digitize(
         self,
