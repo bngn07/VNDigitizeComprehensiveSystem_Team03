@@ -21,7 +21,7 @@ from ..scoring import score_extraction
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass(slots = True)
 class GeminiParams:
     model_name: str = "gemini-2.5-flash"
     temperature: float = 0.0
