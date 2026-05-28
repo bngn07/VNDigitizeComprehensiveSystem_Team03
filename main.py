@@ -9,7 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from digitize import Digitize
-from src.ocr.paddle import Paddle
+from src.ocr.paddle import PaddleTextRecognizer
 from src.ocr.tesseract import TesseractOCR
 
 IMAGE_PATH = Path("data/input/43.png")
@@ -33,7 +33,7 @@ def save_image(image, output_path: Path) -> None:
 
 def build_ocr():
     if OCR_ENGINE == "paddle":
-        return Paddle()
+        return PaddleTextRecognizer()
     return TesseractOCR()
 
 
