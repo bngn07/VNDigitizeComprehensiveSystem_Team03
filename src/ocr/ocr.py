@@ -5,7 +5,7 @@ import numpy as np
 from .adapter       import OCRAdapter
 from .confidence    import ConfidenceScorer
 from .models        import OCRPageResult
-# from .paddle import PaddleTextRecognizer
+from .paddle        import PaddleTextRecognizer
 from .tesseract     import TesseractOCR
 
 
@@ -16,8 +16,8 @@ class OCRPipeline:
 
         if engine == "tesseract":
             self.engine = TesseractOCR()
-        # elif engine == "paddle":
-        #     self.engine = PaddleTextRecognizer()
+        elif engine == "paddle":
+            self.engine = PaddleTextRecognizer()
         else:
             raise ValueError(f"Unsupported engine: {engine}")
 
