@@ -4,3 +4,4 @@ pytesseract
 pyzbar
 joblib
 matplotlib
+paddleocr
