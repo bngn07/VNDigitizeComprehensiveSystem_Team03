@@ -2,18 +2,12 @@ from __future__ import annotations
 
 import numpy    as np
 
-from constants import LABEL_CLEAN, LABEL_HEAVY, LABEL_SKIP
-from decision  import DecisionEngine
-from models    import PreprocessResult
-from steps     import (adaptive_threshold, 
-                        autocrop, 
-                        denoise, 
-                        deskew, 
-                        orient, 
-                        perspective_correct, 
-                        qr_detect, 
-                        sharpen, 
-                        to_grayscale)
+from .constants import LABEL_CLEAN, LABEL_HEAVY, LABEL_SKIP
+from .decision  import DecisionEngine
+from .models    import PreprocessResult
+from .steps     import (adaptive_threshold, autocrop, denoise, 
+                        deskew, orient, perspective_correct, 
+                        qr_detect, sharpen, to_grayscale)
 
 
 STEP_MAP = {

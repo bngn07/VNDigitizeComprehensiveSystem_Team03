@@ -7,7 +7,7 @@ import numpy as np
 import pytesseract
 from pytesseract    import Output
 
-from models         import RotationResult
+from .models        import RotationResult
 
 
 @dataclass
