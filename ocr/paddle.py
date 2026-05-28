@@ -15,11 +15,11 @@ from .ocr import BaseOCR, OCRResult, TextBlock
 
 DEFAULT_PADDLE_CONFIG: dict = {
     "engine": {
-        # "lang": "en",
-        "lang": "vi",
+        "lang": "en",
+        "ocr_version": "PP-OCRv5",
+        # "lang": "vi",
         "device": "cpu",
-        # "ocr_version": "PP-OCRv5",
-        "ocr_version": "PP-OCRv4",
+        # "ocr_version": "PP-OCRv4",
         "use_textline_orientation": False,
         "use_doc_orientation_classify": False,
         "use_doc_unwarping": False,
@@ -72,10 +72,10 @@ def _deep_merge(base: dict, override: dict | None) -> dict:
 @dataclass
 class PaddleParams:
     # lang: str = "en"
-    lang: str = "vi"
+    lang: str = "en"
     device: str = "cpu"
-    # ocr_version: str = "PP-OCRv5"
-    ocr_version: str = "PP-OCRv4"
+    ocr_version: str = "PP-OCRv5"
+    # ocr_version: str = "PP-OCRv4"
 
     use_textline_orientation: bool = False
     use_doc_orientation_classify: bool = False
@@ -259,25 +259,40 @@ class Paddle(BaseOCR):
     #     return OCRResult(texts=blocks)
 
     def _parse_result(self, raw: Any) -> OCRResult:
-        if not raw:
+        if not raw or not isinstance(raw, list):
             return OCRResult(texts=[])
 
         blocks: list[TextBlock] = []
 
         try:
             lines = raw[0]
+            if not lines:
+                return OCRResult(texts=[])
 
             for line in lines:
                 if not line or len(line) < 2:
                     continue
 
                 polygon = line[0]
-                text = line[1][0]
-                confidence = float(line[1][1])
+                text_data = line[1]
 
+                # Safely extract text and confidence based on the data type
+                if isinstance(text_data, (tuple, list)) and len(text_data) >= 2:
+                    # Format: [[box], ("text", 0.95)]
+                    text = text_data[0]
+                    confidence = float(text_data[1])
+                elif isinstance(text_data, str):
+                    # Format: [[box], "text", 0.95]
+                    text = text_data
+                    confidence = float(line[2]) if len(line) > 2 else 0.0
+                else:
+                    continue
+
+                # Skip if text is empty
                 if not text or str(text).strip() == "":
                     continue
 
+                # Safely cast polygon coordinates to ints
                 polygon = [
                     (int(point[0]), int(point[1]))
                     for point in polygon
@@ -293,6 +308,7 @@ class Paddle(BaseOCR):
 
         except Exception as e:
             self._warn(f"Parse OCR result failed: {e}")
+            self._warn(f"Raw output structure was: {raw}") 
             return OCRResult(texts=[])
 
         return OCRResult(texts=blocks)
@@ -303,8 +319,7 @@ class Paddle(BaseOCR):
 
         try:
             rgb = self._to_rgb(image)
-            # raw = self.model._engine.predict(rgb)
-            raw = self.model._engine.ocr(rgb, cls=True)
+            raw = self.model._engine.ocr(rgb)
             return self._parse_result(raw)
         except Exception as exc:
             return self._handle_runtime_error(exc)

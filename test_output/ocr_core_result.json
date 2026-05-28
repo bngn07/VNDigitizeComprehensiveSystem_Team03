@@ -1,0 +1,49 @@
+{
+  "texts": [
+    {
+      "text": "Xin chao",
+      "bounding_polygon": [
+        [
+          10,
+          20
+        ],
+        [
+          110,
+          20
+        ],
+        [
+          110,
+          50
+        ],
+        [
+          10,
+          50
+        ]
+      ],
+      "confidence": 0.95
+    },
+    {
+      "text": "the gioi",
+      "bounding_polygon": [
+        [
+          120,
+          20
+        ],
+        [
+          220,
+          20
+        ],
+        [
+          220,
+          50
+        ],
+        [
+          120,
+          50
+        ]
+      ],
+      "confidence": 0.82
+    }
+  ],
+  "confidence": 0.885
+}
