@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import OCRPageResult
+from .models    import OCRPageResult
 
 
 class ConfidenceScorer:
