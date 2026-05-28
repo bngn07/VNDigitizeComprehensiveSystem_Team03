@@ -3,7 +3,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from .constants import (COEFF_EPSILON, 
+from constants  import (COEFF_EPSILON, 
                         RESIZE_HEIGHT, 
                         RESIZE_WIDTH, 
                         WHITE_RATIO_TOLERANCE)

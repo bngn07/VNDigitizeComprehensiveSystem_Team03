@@ -3,7 +3,7 @@ from __future__ import annotations
 from pyzbar.pyzbar import decode
 import numpy as np
 
-from .models import CodeResult
+from models import CodeResult
 
 
 class CodeDetector:

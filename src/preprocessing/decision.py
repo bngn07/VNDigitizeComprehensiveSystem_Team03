@@ -6,7 +6,7 @@ import os
 import joblib
 import numpy    as np
 
-from .constants import (
+from constants  import (
     FALLBACK_RULES, 
     FEATURE_KEYS, 
     LABEL_CLEAN, 
@@ -14,8 +14,8 @@ from .constants import (
     LABEL_NAMES, 
     LABEL_SKIP, 
     RECIPES)
-from .features  import extract_features, to_vector
-from .models    import DecisionResult
+from features   import extract_features, to_vector
+from models     import DecisionResult
 
 
 class DecideML(ABC):

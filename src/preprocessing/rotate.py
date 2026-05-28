@@ -1,13 +1,13 @@
-from __future__ import annotations
+from __future__     import annotations
 
-from dataclasses import dataclass
+from dataclasses    import dataclass
 
 import cv2
 import numpy as np
 import pytesseract
-from pytesseract import Output
+from pytesseract    import Output
 
-from .models import RotationResult
+from models         import RotationResult
 
 
 @dataclass
