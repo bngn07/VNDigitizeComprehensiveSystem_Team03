@@ -45,15 +45,14 @@ RESIZE_HEIGHT = 500
 WHITE_RATIO_TOLERANCE = 20
 COEFF_EPSILON = 1e-6
 
-STEP_PARAMS: dict[int, dict[str, dict]] = {
+STEP_PARAMS = {
     LABEL_CLEAN: {
-        "denoise":            {"kernel": 7},
-        "adaptive_threshold": {"block_size": 21, "C": 10},
-        "sharpen":            {"weight": 5},
+        "denoise":            {"kernel": 3},
+        "levels":             {"black": 20, "white": 180},
     },
     LABEL_HEAVY: {
         "denoise":            {"kernel": 5},
-        "adaptive_threshold": {"block_size": 7, "C": 2},
-        "sharpen":            {"weight": 5},
+        "levels":             {"black": 20, "white": 180},
+        "adaptive_threshold": {"block_size": 21, "C": 8},
     },
 }

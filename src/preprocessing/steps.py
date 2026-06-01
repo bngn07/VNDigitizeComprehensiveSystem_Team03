@@ -61,6 +61,21 @@ def deskew(gray: np.ndarray) -> np.ndarray:
         borderMode=cv2.BORDER_REPLICATE,
     )
 
+def enhance_contrast(image: np.ndarray, clip_limit: float = 2.0, tile_size: int = 8) -> np.ndarray:
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_size, tile_size))
+    return clahe.apply(image)
+
+
+def levels(image: np.ndarray, black: int = 30, white: int = 220) -> np.ndarray:
+    lut = np.zeros(256, dtype=np.uint8)
+    for i in range(256):
+        if i <= black:
+            lut[i] = 0
+        elif i >= white:
+            lut[i] = 255
+        else:
+            lut[i] = int((i - black) / (white - black) * 255)
+    return cv2.LUT(image, lut)
 
 def orient(image: np.ndarray) -> np.ndarray:
     return rotation_detector.correct(image)

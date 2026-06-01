@@ -13,9 +13,9 @@ from .models        import OCRBlockResult, TextBlock
 
 @dataclass(frozen=True)
 class PaddleConfig:
-    lang: str = "en"
+    lang: str = "vi"
     device: str = "cpu"
-    ocr_version: str = "PP-OCRv5"
+    # ocr_version: str = "PP-OCRv5"
     use_textline_orientation: bool = False
     use_doc_orientation_classify: bool = False
     use_doc_unwarping: bool = False
