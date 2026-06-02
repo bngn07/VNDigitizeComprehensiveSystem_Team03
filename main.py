@@ -4,17 +4,17 @@ from pathlib import Path
 
 import cv2
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from digitize import Digitize
-from ocr.tesseract import TesseractOCR
-from ocr.paddle import Paddle
+from src.ocr.paddle import PaddleTextRecognizer
+from src.ocr.tesseract import TesseractOCR
 
-
-IMAGE_PATH = "data/input/43.png"
+IMAGE_PATH = Path("data/input/43.png")
 OUTPUT_DIR = Path("output")
-OCR_ENGINE = "paddle"   # "tesseract" | "paddle"
+OCR_ENGINE = "paddle"
 
 
 def save_image(image, output_path: Path) -> None:
@@ -33,34 +33,35 @@ def save_image(image, output_path: Path) -> None:
 
 def build_ocr():
     if OCR_ENGINE == "paddle":
-        return Paddle()
+        return PaddleTextRecognizer()
     return TesseractOCR()
 
 
 def main() -> None:
-    img = cv2.imread(IMAGE_PATH)
-    if img is None:
+    image = cv2.imread(str(IMAGE_PATH))
+    if image is None:
         raise FileNotFoundError(f"Cannot read image: {IMAGE_PATH}")
 
     print(f"Loaded image: {IMAGE_PATH}")
-    print(f"Image shape: {img.shape}")
+    print(f"Image shape: {image.shape}")
 
     digitizer = Digitize(
         ocr=build_ocr(),
         config={
             "preprocessing": {
-                "decide_engine": {"provider": None}
+                "decide_engine": {"provider": None},
             },
-            "postprocessing": {
-                "autocorrect": {
-                    "enabled": True,
-                    "min_confidence": 0.7
-                }
-            }
+            "autocorrect": {
+                "enabled": True,
+                "min_confidence": 0.7,
+            },
+            "extraction": {
+                "enabled": False,
+            },
         },
     )
 
-    result = digitizer.digitize(img)
+    result = digitizer.digitize(image)
 
     print("=== DIGITIZE RESULT ===")
     print("=== PREPROCESS RESULT ===")
@@ -73,7 +74,7 @@ def main() -> None:
     print(result.ocr)
 
     output_path = OUTPUT_DIR / "preprocessed.png"
-    save_image(result.image, output_path)
+    save_image(result.preprocessed_image, output_path)
     print(f"Saved preprocessed image to: {output_path}")
 
 

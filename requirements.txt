@@ -1,6 +1,10 @@
 numpy
 opencv-python-headless
+matplotlib
 pytesseract
+paddleocr
 pyzbar
 joblib
-matplotlib
+unidecode
+google-genai
+symspellpy
