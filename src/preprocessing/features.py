@@ -3,15 +3,16 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from .constants import (COEFF_EPSILON, 
-                        RESIZE_HEIGHT, 
-                        RESIZE_WIDTH, 
-                        WHITE_RATIO_TOLERANCE)
+from .constants import (COEFF_EPSILON,
+                        RESIZE_HEIGHT,
+                        RESIZE_WIDTH,
+                        WHITE_RATIO_TOLERANCE,
+                        PreprocessError)
 
 
 def extract_features(image: np.ndarray) -> dict[str, float]:
     if image is None or image.size == 0:
-        raise ValueError("Input image is empty.")
+        raise ValueError(PreprocessError.EMPTY_IMAGE)
 
     gray = image
     if image.ndim == 3:

@@ -5,10 +5,12 @@ from typing         import Any
 
 import numpy as np
 
+from .constants     import Label
+
 
 @dataclass
 class DecisionResult:
-    label: int
+    label: Label
     label_name: str
     confidence: float
     recipe: list[str]
