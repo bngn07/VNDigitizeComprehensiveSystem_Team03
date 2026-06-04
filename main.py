@@ -1,15 +1,30 @@
 from __future__ import annotations
-
+import os
+import sys
 from pathlib import Path
 
+# from intelligence import rag
+
+# 1. Ép tất cả các thư viện dùng chung bộ xử lý Python thuần, bỏ qua lỗi phiên bản Descriptor
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
+# 2. Khóa các tiến trình ẩn của Torch gây lỗi shm.dll cũ
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+from unittest import result
 import cv2
 import matplotlib
+
+# from intelligence import rag
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from digitize import Digitize
 from ocr.tesseract import TesseractOCR
 from ocr.paddle import Paddle
+from src.intelligence.rag import RAGPipeline
+
 
 
 IMAGE_PATH = "data/input/43.png"
@@ -71,6 +86,34 @@ def main() -> None:
 
     print("=== OCR RESULT ===")
     print(result.ocr)
+
+    print("\n=== BUILDING RAG ===")
+    rag = RAGPipeline()
+    full_text = "\n".join(
+        block.text
+        for block in result.ocr.texts
+    )   
+
+    rag.build(full_text)
+    print("RAG initialized successfully")
+
+    questions = [
+    "Ai là người kháng cáo?",
+    "Số tiền thuế là bao nhiêu?",
+    "Cơ quan nào xử lý vụ việc?"
+    ]
+
+    for q in questions:
+
+        print("\n")
+        print("=" * 60)
+
+        print("Question:", q)
+
+        answer = rag.ask(q)
+
+        print("Answer:")
+        print(answer)
 
     output_path = OUTPUT_DIR / "preprocessed.png"
     save_image(result.image, output_path)
