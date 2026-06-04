@@ -67,7 +67,7 @@ class RAGPipeline:
     def __init__(self):
         self.chunker = Chunker()
         self.qa = QAEngine(
-            api_key="AQ.Ab8RN6LD_p7JeSBGR2mtdCYhRXIP_Bb7WNzyxSgF2tCVGV9-AA"
+            # api_key="AQ.Ab8RN6LD_p7JeSBGR2mtdCYhRXIP_Bb7WNzyxSgF2tCVGV9-AA"
         )
         self.document_chunks = []
 
