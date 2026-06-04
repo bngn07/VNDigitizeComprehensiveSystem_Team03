@@ -3,8 +3,6 @@ import os
 import sys
 from pathlib import Path
 
-# from intelligence import rag
-
 # 1. Ép tất cả các thư viện dùng chung bộ xử lý Python thuần, bỏ qua lỗi phiên bản Descriptor
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
@@ -13,11 +11,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
-from unittest import result
 import cv2
 import matplotlib
-
-# from intelligence import rag
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from digitize import Digitize

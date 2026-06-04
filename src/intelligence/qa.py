@@ -1,64 +1,25 @@
-# from __future__ import annotations
-
-# class QAEngine:
-#     def __init__(self):
-#         pass
-
-#     def answer(self, query: str, contexts: list[dict]) -> str:
-#         if not contexts:
-#             return "Không tìm thấy thông tin phù hợp."
-
-#         response = []
-#         response.append("QUESTION")
-#         response.append(query)
-
-#         response.append("\n")
-#         response.append("RETRIEVED CONTEXT")
-
-#         for idx, ctx in enumerate(contexts):
-#             response.append(f"[{idx}] Score: {ctx['score']:.4f}")
-#             response.append(ctx["text"])
-#             response.append("-" * 50)
-
-#         return "\n".join(response)
-
 import google.generativeai as genai
 
 
 class QAEngine:
-
     def __init__(self, api_key):
-
         genai.configure(api_key=api_key)
-
-        self.model = genai.GenerativeModel(
-            "gemini-2.5-flash"
-        )
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
 
     def answer(self, question, context):
-
         prompt = f"""
-Bạn là trợ lý phân tích tài liệu pháp lý.
+        Bạn là trợ lý phân tích tài liệu pháp lý.
+        Chỉ được trả lời dựa trên nội dung dưới đây.
+        ====================
+        TÀI LIỆU
+        ====================
+        {context}
+        ====================
+        CÂU HỎI
+        ====================
+        {question}
 
-Chỉ được trả lời dựa trên nội dung dưới đây.
-
-====================
-TÀI LIỆU
-====================
-
-{context}
-
-====================
-CÂU HỎI
-====================
-
-{question}
-
-Nếu không tìm thấy thông tin thì trả lời:
-
-"Không tìm thấy thông tin trong tài liệu."
-"""
-
+        Nếu không tìm thấy thông tin thì trả lời: "Không tìm thấy thông tin trong tài liệu."
+        """
         response = self.model.generate_content(prompt)
-
         return response.text
