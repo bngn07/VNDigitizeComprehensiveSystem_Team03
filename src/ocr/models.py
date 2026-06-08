@@ -59,7 +59,7 @@ class OCRPageResult:
     words: list[WordResult] = field(default_factory=list)
     raw_text: str = ""
     overall_confidence: float = 0.0
-
+    
     def __post_init__(self) -> None:
         if not self.raw_text and self.words:
             self.raw_text = " ".join(word.text for word in self.words)

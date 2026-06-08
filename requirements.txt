@@ -3,8 +3,15 @@ opencv-python-headless
 matplotlib
 pytesseract
 paddleocr
+paddlepaddle
 pyzbar
 joblib
 unidecode
 google-genai
 symspellpy
+json-repair
+ollama
+pydantic
+python-dotenv
+libmagic
+python-magic

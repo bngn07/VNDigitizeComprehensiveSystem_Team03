@@ -1,14 +1,63 @@
-import cv2
+import os
+import json
+import argparse
+
+from src.preprocessing.preprocess import Preprocessing
 from src.ocr.ocr import OCRPipeline
+from src.postprocessing.autocorrect import AutoCorrector
+from src.extraction.document import DocumentExtractor
 
-# 1. Initialize the pipeline (using PaddleOCR)
-pipeline = OCRPipeline(engine="paddle", threshold=0.8)
 
-# 2. Load your image using OpenCV
-image = cv2.imread(r"data/input/preprocess/images/0057.png")
+def process_document(file_path: str):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
 
-# 3. Run inference on the image
-result = pipeline.run(image)
+    print(f"--- Processing: {file_path} ---")
 
-# 4. View the results
-print(result)
+    print("1. Preprocessing image...")
+    preprocessor = Preprocessing()
+    prep_result = preprocessor.process(file_path)
+
+    print("2. Running OCR (Engine: Tesseract)...")
+    ocr_pipeline = OCRPipeline(engine="tesseract", threshold=0.8)
+    ocr_result = ocr_pipeline.run(prep_result.image)
+
+    print("3. Applying auto-correction rules...")
+    autocorrector = AutoCorrector(enabled=True)
+    correction_result = autocorrector.correct_ocr_result(ocr_result)
+
+    final_text = " ".join(correction_result.corrected_texts)
+
+    print("4. Extracting document metadata...")
+    extractor = DocumentExtractor()
+    extracted_data = extractor.extract(
+        raw_text=final_text,
+        words=ocr_result.words,
+    )
+
+    return extracted_data
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run the document processing pipeline on an image."
+    )
+    parser.add_argument(
+        "image_path",
+        help="Path to the input image file",
+    )
+
+    args = parser.parse_args()
+
+    try:
+        results = process_document(args.image_path)
+
+        print("\n=== FINAL EXTRACTION RESULT ===")
+        print(json.dumps(results, ensure_ascii=False, indent=4))
+
+    except Exception as e:
+        print(f"An error occurred during processing: {e}")
+
+
+if __name__ == "__main__":
+    main()
