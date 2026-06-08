@@ -33,5 +33,5 @@ This module contains the code for cleaning up document images before we pass the
 
 ```bash
 docker compose build
-docker compose run --rm app python main.py <image_path>
+docker compose run --rm app python infer.py <image_path>
 ```
