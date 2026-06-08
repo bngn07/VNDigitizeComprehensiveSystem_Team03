@@ -3,6 +3,7 @@ import sys
 import json
 import argparse
 import pytesseract
+import cv2
 
 from src.preprocessing.preprocess import Preprocessing
 from src.ocr.ocr import OCRPipeline
@@ -30,6 +31,19 @@ def process_document(file_path: str):
     print("1. Preprocessing image...")
     preprocessor = Preprocessing()
     prep_result = preprocessor.process(file_path)
+
+    qrcodes = prep_result.metadata.get("qrcodes", [])
+    if qrcodes:
+        print(f"   -> Found {len(qrcodes)} barcode(s)/QR code(s):")
+        for i, qr in enumerate(qrcodes, 1):
+            print(f"      {i}. Type: {qr.type}, Content: {qr.content}")
+    else:
+        print("   -> No QR codes found.")
+
+    print("   -> Displaying preprocessed image. Press any key on the image window to continue...")
+    cv2.imshow("Preprocessed Image", prep_result.image)
+    cv2.waitKey(0) # Wait indefinitely until a key is pressed
+    cv2.destroyAllWindows()
 
     print("2. Running OCR (Engine: Tesseract)...")
     ocr_pipeline = OCRPipeline(engine="tesseract", threshold=0.8)
