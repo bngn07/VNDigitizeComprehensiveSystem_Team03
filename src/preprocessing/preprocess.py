@@ -7,7 +7,7 @@ import numpy as np
 from .constants import (LABEL_CLEAN, LABEL_HEAVY,
                         LABEL_SKIP, STEP_PARAMS, PreprocessError, RECIPES, Step)
 from .decision  import DecisionEngine
-from .models    import PreprocessResult
+from .models    import PreprocessResult, CodeResult
 from .steps import (
     adaptive_threshold,
     autocrop,
@@ -39,7 +39,7 @@ STEP_MAP = {
 class Preprocessing:
     def __init__(self, provider: str | None = None) -> None:
         self.engine = DecisionEngine(provider=provider)
-        self.qr_buffer: list = []
+        self.qr_buffer: list[CodeResult] = []
 
     def apply_recipe(
         self,
