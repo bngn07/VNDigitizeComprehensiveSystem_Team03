@@ -1,11 +1,24 @@
 import os
+import sys
 import json
 import argparse
+import pytesseract
 
 from src.preprocessing.preprocess import Preprocessing
 from src.ocr.ocr import OCRPipeline
 from src.postprocessing.autocorrect import AutoCorrector
 from src.extraction.document import DocumentExtractor
+
+
+def init_tesseract(tesseract_cmd=None):
+    if tesseract_cmd:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        return
+
+    if sys.platform == "win32":
+        default_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        if os.path.exists(default_path):
+            pytesseract.pytesseract.tesseract_cmd = default_path
 
 
 def process_document(file_path: str):
@@ -46,8 +59,14 @@ def main():
         "image_path",
         help="Path to the input image file",
     )
+    parser.add_argument(
+        "--tesseract-path",
+        help="Path to tesseract executable",
+    )
 
     args = parser.parse_args()
+
+    init_tesseract(args.tesseract_path)
 
     try:
         results = process_document(args.image_path)
