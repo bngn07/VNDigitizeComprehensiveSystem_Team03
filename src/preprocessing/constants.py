@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from enum import IntEnum, StrEnum
 
-
 class Label(IntEnum):
     SKIP  = 1
     HEAVY = 2
     CLEAN = 3
-
 
 class PreprocessError(StrEnum):
     EMPTY_IMAGE          = "Input image is empty."
@@ -19,7 +17,6 @@ class PreprocessError(StrEnum):
 
     def format(self, **kwargs) -> str:
         return self.value.format(**kwargs)
-
 
 class Step(StrEnum):
     GRAYSCALE           = "grayscale"
@@ -34,23 +31,16 @@ class Step(StrEnum):
     LEVELS              = "levels"
     QR_DETECT           = "qr_detect"
 
-
-class FeatureKey(StrEnum):
-    WHITE_RATIO      = "white_ratio"
-    STD_VAL          = "std_val"
-    COEFF_VARIATION  = "coeff_variation"
-    LAPLACIAN_VAR    = "laplacian_var"
-    MEAN_INTENSITY   = "mean_intensity"
-    EDGE_DENSITY     = "edge_density"
-
-
 LABEL_SKIP  = Label.SKIP
 LABEL_HEAVY = Label.HEAVY
 LABEL_CLEAN = Label.CLEAN
 
 LABEL_NAMES: dict[int, str] = {label: label.name for label in Label}
 
-FEATURE_KEYS: list[str] = [k.value for k in FeatureKey]
+FEATURE_KEYS: list[str] = [
+    "white_ratio", "std_val", "coeff_variation", 
+    "laplacian_var", "mean_intensity", "edge_density"
+]
 
 FALLBACK_RULES: dict[str, float] = {
     "skip_white_ratio_gt":    0.95,
@@ -59,10 +49,10 @@ FALLBACK_RULES: dict[str, float] = {
     "clean_coeff_lt":         0.12,
 }
 
-RECIPES: dict[int, list[str]] = {
+RECIPES: dict[int, list[Step]] = {
     Label.SKIP:  [],
-    Label.CLEAN: [Step.GRAYSCALE, Step.DENOISE, Step.LEVELS, Step.DESKEW, Step.AUTOCROP],
-    Label.HEAVY: [Step.GRAYSCALE, Step.DENOISE, Step.LEVELS, Step.ADAPTIVE_THRESHOLD, Step.DESKEW, Step.AUTOCROP],
+    Label.CLEAN: [Step.GRAYSCALE, Step.ORIENTATION, Step.DENOISE, Step.LEVELS, Step.DESKEW, Step.AUTOCROP],
+    Label.HEAVY: [Step.GRAYSCALE, Step.ORIENTATION, Step.DENOISE, Step.LEVELS, Step.ADAPTIVE_THRESHOLD, Step.DESKEW, Step.AUTOCROP],
 }
 
 RESIZE_WIDTH = 500
