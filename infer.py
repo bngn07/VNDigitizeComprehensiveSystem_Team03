@@ -10,6 +10,12 @@ from src.ocr.ocr import OCRPipeline
 from src.postprocessing.autocorrect import AutoCorrector
 from src.extraction.document import DocumentExtractor
 
+DEBUG_OUTPUT_DIR = "data/output"
+
+
+def log(step: str, message: str):
+    print(f"[{step}] {message}")
+
 
 def init_tesseract(tesseract_cmd=None):
     if tesseract_cmd:
@@ -26,58 +32,45 @@ def process_document(file_path: str):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    print(f"--- Processing: {file_path} ---")
+    os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
+    print(f"Processing: {file_path}")
 
-    print("1. Preprocessing image...")
+    log("preprocess", "Preprocessing image...")
     preprocessor = Preprocessing()
     prep_result = preprocessor.process(file_path)
 
     qrcodes = prep_result.metadata.get("qrcodes", [])
     if qrcodes:
-        print(f"   -> Found {len(qrcodes)} barcode(s)/QR code(s):")
+        log("preprocess", f"Found {len(qrcodes)} barcode(s)/QR code(s):")
         for i, qr in enumerate(qrcodes, 1):
-            print(f"      {i}. Type: {qr.type}, Content: {qr.content}")
+            print(f"           {i}. Type={qr.type}, Content={qr.content}")
     else:
-        print("   -> No QR codes found.")
+        log("preprocess", "No QR codes found")
 
-    print("   -> Displaying preprocessed image. Press any key on the image window to continue...")
-    cv2.imshow("Preprocessed Image", prep_result.image)
-    cv2.waitKey(0) # Wait indefinitely until a key is pressed
-    cv2.destroyAllWindows()
+    debug_image_path = os.path.join(DEBUG_OUTPUT_DIR, "debug_preprocessed.jpg")
+    cv2.imwrite(debug_image_path, prep_result.image)
+    log("preprocess", f"Saved preprocessed image -> {debug_image_path}")
 
-    print("2. Running OCR (Engine: Tesseract)...")
+    log("ocr", "Running OCR (Tesseract)...")
     ocr_pipeline = OCRPipeline(engine="tesseract", threshold=0.8)
     ocr_result = ocr_pipeline.run(prep_result.image)
 
-    print("3. Applying auto-correction rules...")
+    log("autocorrect", "Applying correction rules...")
     autocorrector = AutoCorrector(enabled=True)
     correction_result = autocorrector.correct_ocr_result(ocr_result)
-
     final_text = " ".join(correction_result.corrected_texts)
 
-    print("4. Extracting document metadata...")
+    log("extract", "Extracting document metadata...")
     extractor = DocumentExtractor()
-    extracted_data = extractor.extract(
-        raw_text=final_text,
-        words=ocr_result.words,
-    )
+    extracted_data = extractor.extract(raw_text=final_text, words=ocr_result.words)
 
     return extracted_data
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run the document processing pipeline on an image."
-    )
-    parser.add_argument(
-        "image_path",
-        help="Path to the input image file",
-    )
-    parser.add_argument(
-        "--tesseract-path",
-        help="Path to tesseract executable",
-    )
-
+    parser = argparse.ArgumentParser(description="Run the document processing pipeline on an image.")
+    parser.add_argument("image_path", help="Path to the input image file")
+    parser.add_argument("--tesseract-path", help="Path to tesseract executable")
     args = parser.parse_args()
 
     init_tesseract(args.tesseract_path)
@@ -85,11 +78,15 @@ def main():
     try:
         results = process_document(args.image_path)
 
-        print("\n=== FINAL EXTRACTION RESULT ===")
+        output_path = os.path.join(DEBUG_OUTPUT_DIR, "result.json")
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(results, f, ensure_ascii=False, indent=4)
+
+        print(f"\nResult saved -> {output_path}")
         print(json.dumps(results, ensure_ascii=False, indent=4))
 
     except Exception as e:
-        print(f"An error occurred during processing: {e}")
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":

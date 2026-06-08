@@ -17,3 +17,22 @@ This module contains the code for cleaning up document images before we pass the
 3. Based on that label, it runs a specific "recipe" of steps. For example, a `HEAVY` image gets denoised, thresholded, and sharpened, while a `CLEAN` image just gets straightened and cropped.
 4. It reads any QR codes at the very end.
 5. It returns a result object containing the fixed image and a summary of what it did.
+
+### Limitations
+1. QR/barcode module
+Only process deskewed and was orientationally-corrected
+2. Decision Engine
+The engine is just implemented as a demo of how-it-will-be,
+so it's cannot be used for inferencing in new data.
+**Re-training is required if this module is used for real implementation**
+Recommended specs:
+* train on a high-quality image with a better/newer method
+of obtaining the input image's features, after that,
+train on a Random Forest for lightweight classification task.
+3. The recipe is not configurable now.
+Configurable change for different recipe on different types of
+images will be a huge improvement.
+
+
+# Run it on DOCKER
+docker compose build
