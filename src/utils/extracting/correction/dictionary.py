@@ -22,7 +22,6 @@ class DictionaryCorrector:
     def __init__(self, confidence_threshold=0.8):
         self.sym_spell = None
         self.confidence_threshold = confidence_threshold
-        self._load_dictionary()
         self.ngram_model = BigramLanguageModel()
 
         current_file = Path(__file__).resolve()
@@ -33,6 +32,8 @@ class DictionaryCorrector:
             self.ngram_model.load_corpus(str(corpus_path))
         else:
             print("Không tìm thấy corpus.txt")
+        
+        self._load_dictionary()
         
     def remove_accent(self, text: str) -> str:
         return unidecode(text).lower()
