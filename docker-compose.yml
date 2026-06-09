@@ -1,6 +1,6 @@
 services:
   app:
-    image: vndigitize-dev
+    image: vndigitize
     build: .
     working_dir: /app
     volumes:

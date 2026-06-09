@@ -4,7 +4,6 @@ from .correction_type import Correction
 
 
 class RuleCorrector:
-    """Sửa lỗi theo quy tắc cố định"""
     
     def __init__(self):
         # Các rule phổ biến OCR tiếng Việt

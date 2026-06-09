@@ -1,11 +1,8 @@
-# -- built in --
 from dataclasses import dataclass
 
-# -- third party --
 import ollama
 from pydantic import BaseModel
 
-# -- self-defined --
 from .base import (
     ExtractorResult, 
     BaseExtractor, 

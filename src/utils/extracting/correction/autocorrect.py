@@ -5,10 +5,6 @@ from .dictionary import DictionaryCorrector
 
 
 class AutoCorrector:
-    """
-    Module Auto-correction độc lập cho VN-Digitize
-    Có thể dùng riêng lẻ hoặc tích hợp sau
-    """
     
     def __init__(self, config: dict = None):
         self.config = config or {}
@@ -19,7 +15,6 @@ class AutoCorrector:
         self.dict_corrector = DictionaryCorrector(confidence_threshold=self.min_confidence)
 
     def correct_text(self, text: str) -> str:
-        """Sửa lỗi cho 1 đoạn text duy nhất"""
         if not self.enabled or not text:
             return text
         
@@ -29,7 +24,6 @@ class AutoCorrector:
         return result.corrected_texts[0]
 
     def correct_list(self, texts: List[str], confidences: List[float] = None) -> CorrectionResult:
-        """Sửa lỗi cho danh sách text"""
         if not self.enabled:
             return CorrectionResult(
                 corrected_texts=texts,
@@ -41,11 +35,9 @@ class AutoCorrector:
         current_texts = texts.copy()
         all_corrections = []
 
-        # Rule-based
         current_texts, rule_corrections = self.rule_corrector.correct(current_texts)
         all_corrections.extend(rule_corrections)
 
-        # Dictionary-based
         current_texts, dict_corrections = self.dict_corrector.correct(current_texts, confidences)
         all_corrections.extend(dict_corrections)
 
@@ -57,18 +49,16 @@ class AutoCorrector:
         )
 
     def correct_ocr_result(self, ocr_result) -> CorrectionResult:
-        """Hỗ trợ OCRResult"""
         confidences = None
-        if hasattr(ocr_result, 'texts'):
-            if isinstance(ocr_result.texts, str):
-                texts = [ocr_result.texts]
-            else:
-                texts = [block.text for block in ocr_result.texts]
-                confidences = [block.confidence for block in ocr_result.texts]
+        if hasattr(ocr_result, 'words') and ocr_result.words:
+            texts = [word.text for word in ocr_result.words]
+            confidences = [word.confidence for word in ocr_result.words]
+        elif hasattr(ocr_result, 'raw_text') and ocr_result.raw_text:
+            texts = [ocr_result.raw_text]
         else:
             texts = [str(ocr_result)]
 
         result = self.correct_list(texts, confidences)
-        result.ocr_result = ocr_result  # lưu tham chiếu gốc
+        result.ocr_result = ocr_result
         return result
         
